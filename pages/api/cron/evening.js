@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         <p style="font-size: 16px;">The day is ending. Did you conquer your goals today?</p>
         <p>Don't let your <strong>Streak</strong> break. Log your mission update now to earn your XP.</p>
         <br />
-        <a href="https://your-website.vercel.app" style="background: #eab308; color: black; padding: 15px 25px; text-decoration: none; font-weight: bold; border-radius: 10px; display: inline-block;">LOG EOD UPDATE</a>
+        <a href="https://mission-2026.vercel.app/" style="background: #eab308; color: black; padding: 15px 25px; text-decoration: none; font-weight: bold; border-radius: 10px; display: inline-block;">LOG EOD UPDATE</a>
       </div>
     `,
   };

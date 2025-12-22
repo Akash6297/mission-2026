@@ -32,7 +32,7 @@ export default async function handler(req, res) {
             </ul>
         </div>
         <p style="margin-top: 20px; color: #666;">"Don't stop until you're proud."</p>
-        <a href="https://your-website.vercel.app" style="background: #eab308; color: black; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">OPEN COMMAND CENTER</a>
+        <a href="https://mission-2026.vercel.app/" style="background: #eab308; color: black; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px;">OPEN COMMAND CENTER</a>
       </div>
     `,
   };
