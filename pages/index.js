@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, Settings, ShoppingBag, Plus, Trash2 } from 'lucide-react';
+import { Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, Settings, ShoppingBag, Plus, Trash2, LogOut, User as UserIcon } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useRouter } from 'next/router';
+import { parse } from 'cookie';
+import jwt from 'jsonwebtoken';
+
+// 1. THIS PART LOADS YOUR DATA AND REDIRECTS IF NOT LOGGED IN
+export async function getServerSideProps(context) {
+  const { req } = context;
+  const cookies = parse(req.headers.cookie || '');
+  const token = cookies.auth_token;
+
+  if (!token) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return { 
+        props: { 
+            username: decoded.username || "Soldier" // Sends username to the page
+        } 
+    };
+  } catch (err) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+}
 
 const initialResolutions = [
   { id: "lang", title: "New Language", icon: <Languages />, color: "text-blue-500" },
@@ -14,7 +39,8 @@ const initialResolutions = [
   { id: "conn", title: "Networking", icon: <Users />, color: "text-indigo-500" },
 ];
 
-export default function Home() {
+export default function Home({ username }) {
+  const router = useRouter();
   const [update, setUpdate] = useState("");
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [mood, setMood] = useState("Smile");
@@ -26,6 +52,14 @@ export default function Home() {
 
   const [goals, setGoals] = useState({ weekly: 2000, monthly: 8000 });
   const [perks, setPerks] = useState([]);
+
+  // 2. LOGOUT LOGIC
+  const handleLogout = async () => {
+    const res = await fetch('/api/auth/logout');
+    if (res.ok) {
+        router.push('/login');
+    }
+  };
 
   useEffect(() => { 
     fetchHistory(); 
@@ -60,16 +94,19 @@ export default function Home() {
     const data = await res.json();
     setHistory(data);
     const walletBalance = data.reduce((sum, item) => sum + (item.xpGained || 0), 0);
+    
     const last7DaysXp = data.filter(log => {
         const logDate = new Date(log.date);
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return logDate >= sevenDaysAgo && log.type !== "spend";
     }).reduce((sum, item) => sum + (item.xpGained || 0), 0);
+    
     const thisMonthXp = data.filter(log => {
         const logDate = new Date(log.date);
         return logDate.getMonth() === new Date().getMonth() && log.type !== "spend";
     }).reduce((sum, item) => sum + (item.xpGained || 0), 0);
+
     setStats({ 
         xp: walletBalance, 
         streak: data.length > 0 ? 1 : 0, 
@@ -125,22 +162,11 @@ export default function Home() {
   return (
     <div className={`min-h-screen ${bgColor} ${isDarkMode ? 'text-white' : 'text-slate-900'} transition-all duration-500 p-4 sm:p-6 md:p-8 font-sans`}>
       <Head>
-  <title>MISSION 2026</title>
-  <meta name="description" content="Your 2026 Legacy starts here" />
-  
-  {/* Favicon */}
-  <link rel="icon" href="/favicon.ico" />
-  
-  {/* PWA Tags */}
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#eab308" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  
-  {/* Viewport for Mobile */}
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-</Head>
+        <title>MISSION 2026</title>
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+      </Head>
 
       {/* SETTINGS MODAL */}
       {showSettings && (
@@ -214,12 +240,41 @@ export default function Home() {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* TOP NAV */}
-        <div className="flex justify-between items-center mb-6 sm:mb-8">
-            <h1 className="text-3xl sm:text-5xl font-black italic tracking-tighter uppercase opacity-10 select-none">Mission 2026</h1>
-            <div className="flex gap-2 sm:gap-4">
-                <button onClick={() => setShowSettings(true)} className={`${cardColor} p-2 sm:p-3 rounded-full`}><Settings size={18} className="sm:w-5 sm:h-5"/></button>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`${cardColor} p-2 sm:p-3 rounded-full`}>{isDarkMode ? <Sun size={18} className="sm:w-5 sm:h-5 text-yellow-400" /> : <Moon size={18} className="sm:w-5 sm:h-5 text-blue-600" />}</button>
+        {/* 3. UPDATED TOP NAV WITH PROFILE & LOGOUT */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 className="text-3xl sm:text-5xl font-black italic tracking-tighter uppercase opacity-10 select-none">Mission 2026</h1>
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                {/* User Profile Card */}
+                <div className={`${cardColor} flex items-center gap-3 px-4 py-2 rounded-2xl border border-white/5`}>
+                    <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-black font-black uppercase text-sm">
+                        {username.charAt(0)}
+                    </div>
+                    <div className="hidden sm:block">
+                        <p className="text-[8px] font-black uppercase text-gray-500 leading-none tracking-widest">Logged In As</p>
+                        <p className="text-xs font-bold text-yellow-500">{username}</p>
+                    </div>
+                    
+                    {/* Logout Button */}
+                    <button 
+                        onClick={handleLogout}
+                        className="ml-2 p-2 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                        title="Logout"
+                    >
+                        <LogOut size={18} />
+                    </button>
+                </div>
+
+                <div className="flex gap-2">
+                    <button onClick={() => setShowSettings(true)} className={`${cardColor} p-2.5 rounded-xl border border-white/5 hover:rotate-90 transition-all`}>
+                        <Settings size={20}/>
+                    </button>
+                    <button onClick={() => setIsDarkMode(!isDarkMode)} className={`${cardColor} p-2.5 rounded-xl border border-white/5`}>
+                        {isDarkMode ? <Sun size={20} className="text-yellow-400" /> : <Moon size={20} className="text-blue-600" />}
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -251,12 +306,11 @@ export default function Home() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           <div className="lg:col-span-8 space-y-6 sm:space-y-8">
-            {/* QUEST GRID */}
             <div className="grid grid-cols-2 xs:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                 {initialResolutions.map((res) => (
                     <button key={res.id} onClick={() => setSelectedTasks(prev => prev.includes(res.title) ? prev.filter(t => t !== res.title) : [...prev, res.title])}
                         className={`p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border transition-all flex flex-col items-center gap-2 sm:gap-4 ${
-                            selectedTasks.includes(res.title) ? 'bg-yellow-500 text-black border-yellow-400 scale-95' : `${cardColor} hover:border-yellow-500/30`
+                            selectedTasks.includes(res.title) ? 'bg-yellow-500 text-black border-yellow-400 scale-95 shadow-xl' : `${cardColor} hover:border-yellow-500/30`
                         }`}>
                         {React.cloneElement(res.icon, { size: 24 })}
                         <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-tighter text-center">{res.title}</span>
@@ -264,7 +318,6 @@ export default function Home() {
                 ))}
             </div>
 
-            {/* SHOP / MARKET */}
             <div className={`${isDarkMode ? 'bg-blue-900/5' : 'bg-blue-50'} border border-blue-500/10 p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem]`}>
                 <h3 className="text-blue-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] mb-4 sm:mb-6 flex items-center gap-2">
                     <ShoppingBag size={14}/> Reward Market
@@ -273,25 +326,24 @@ export default function Home() {
                     {perks.length > 0 ? perks.map((r, i) => (
                         <button key={i} onClick={() => spendXP(r)} disabled={stats.xp < r.xp}
                             className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex-1 min-w-[140px] sm:flex-none ${
-                                stats.xp >= r.xp ? 'bg-blue-500 text-black border-blue-400' : 'bg-gray-500/5 border-black/5 opacity-20 cursor-not-allowed grayscale'
+                                stats.xp >= r.xp ? 'bg-blue-500 text-black border-blue-400' : 'bg-gray-500/5 border-black/5 opacity-20 cursor-not-allowed grayscale shadow-inner'
                             }`}>
                             <div className="text-[9px] sm:text-[11px] font-black uppercase flex flex-col items-start leading-tight">
                                 <span>{r.label}</span>
                                 <span className="opacity-60 text-[8px]">{r.xp} XP</span>
                             </div>
                         </button>
-                    )) : <p className="text-[10px] text-gray-500 italic">No rewards set.</p>}
+                    )) : ( <p className="text-xs text-gray-500 italic">No rewards set. Click the gear icon to add some!</p> )}
                 </div>
             </div>
 
-            {/* INPUT BOX */}
             <div className={`${cardColor} p-5 sm:p-8 rounded-[2.5rem] sm:rounded-[3.5rem] border`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4 sm:gap-0">
                     <h2 className="text-xl sm:text-2xl font-black italic uppercase tracking-tighter">Mission Log</h2>
                     <div className="flex gap-2 bg-black/20 p-1.5 rounded-xl border border-white/5 w-full sm:w-auto justify-center">
                         {[{v:"Frown", i:<Frown/>},{v:"Meh", i:<Meh/>},{v:"Smile", i:<Smile/>}].map(m => (
                             <button key={m.v} onClick={() => setMood(m.v)} 
-                                className={`p-2 rounded-lg transition-all ${mood === m.v ? 'bg-yellow-500 text-black' : 'text-gray-500'}`}>
+                                className={`p-2 rounded-lg transition-all ${mood === m.v ? 'bg-yellow-500 text-black' : 'text-gray-400'}`}>
                                 {React.cloneElement(m.i, {size: 20})}
                             </button>
                         ))}
@@ -306,17 +358,16 @@ export default function Home() {
             </div>
           </div>
 
-          {/* TIMELINE */}
           <div className={`lg:col-span-4 ${cardColor} rounded-[2rem] sm:rounded-[3.5rem] p-6 sm:p-8 border mt-4 lg:mt-0`}>
             <h2 className="text-[9px] sm:text-[10px] font-black uppercase text-gray-500 mb-6 sm:mb-10 flex items-center gap-2">
                 <History size={16} /> Timeline
             </h2>
-            <div className="space-y-6 sm:space-y-10">
+            <div className="space-y-6 sm:space-y-10 text-left">
                 {history.map(log => (
                     <div key={log._id} onClick={() => setSelectedLog(log)} className={`relative pl-6 sm:pl-8 border-l-2 ${log.type === "spend" ? 'border-red-500/30' : 'border-yellow-500/20'} cursor-pointer group`}>
-                        <div className={`absolute -left-[7px] sm:-left-[9px] top-1 w-3 sm:w-4 h-3 sm:h-4 rounded-full border-2 ${log.type === "spend" ? 'bg-red-500' : 'bg-yellow-500'}`} />
+                        <div className={`absolute -left-[7px] sm:-left-[9px] top-1 w-3 sm:w-4 h-3 sm:h-4 rounded-full border-2 ${log.type === "spend" ? 'bg-red-500' : 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.3)]'}`} />
                         <p className="text-[8px] sm:text-[10px] font-mono text-gray-500 mb-1 uppercase">{new Date(log.date).toDateString()}</p>
-                        <p className="text-[11px] sm:text-sm line-clamp-2 italic opacity-80">"{log.text}"</p>
+                        <p className={`text-[11px] sm:text-sm line-clamp-2 italic ${isDarkMode ? 'text-gray-400' : 'text-slate-600'} group-hover:text-yellow-500 transition-colors`}>"{log.text}"</p>
                         <p className={`text-[8px] sm:text-[10px] font-black mt-2 uppercase ${log.type === "spend" ? 'text-red-500' : 'text-yellow-500/50'}`}>
                             {log.xpGained > 0 ? `+${log.xpGained}` : log.xpGained} XP
                         </p>

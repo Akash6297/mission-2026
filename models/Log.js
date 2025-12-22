@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 const LogSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
   text: { type: String, required: true },
   tasksCompleted: [String], 
   mood: { type: String, default: "Smile" },
