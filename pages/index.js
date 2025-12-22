@@ -124,7 +124,23 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen ${bgColor} ${isDarkMode ? 'text-white' : 'text-slate-900'} transition-all duration-500 p-4 sm:p-6 md:p-8 font-sans`}>
-      <Head><title>MISSION 2026 OS</title></Head>
+      <Head>
+  <title>MISSION 2026</title>
+  <meta name="description" content="Your 2026 Legacy starts here" />
+  
+  {/* Favicon */}
+  <link rel="icon" href="/favicon.ico" />
+  
+  {/* PWA Tags */}
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#eab308" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  
+  {/* Viewport for Mobile */}
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+</Head>
 
       {/* SETTINGS MODAL */}
       {showSettings && (

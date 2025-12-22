@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Hexagon -->
+  <path d="M256 40L450.861 148v216L256 472L61.1385 364V148L256 40Z" fill="#0A0A0C" stroke="#EAB308" stroke-width="15"/>
+  
+  <!-- Stylized 'M' Peak -->
+  <path d="M140 340L256 160L372 340" stroke="#EAB308" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 340L256 230L332 340" stroke="#EAB308" stroke-width="15" stroke-opacity="0.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Target / Orbit -->
+  <circle cx="256" cy="180" r="40" stroke="#EAB308" stroke-width="8" stroke-dasharray="10 10"/>
+  <circle cx="256" cy="180" r="15" fill="#EAB308">
+    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+  </circle>
+
+  <!-- Mission 2026 Text detail -->
+  <path d="M210 410H302" stroke="#EAB308" stroke-width="4" stroke-opacity="0.3"/>
+</svg>
