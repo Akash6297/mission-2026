@@ -23,7 +23,8 @@ export default async function handler(req, res) {
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
 
-    const resetUrl = `http://${req.headers.host}/reset-password?token=${token}`;
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const resetUrl = `${protocol}://${req.headers.host}/reset-password?token=${token}`;
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
