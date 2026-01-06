@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, Settings, ShoppingBag, Plus, Trash2, LogOut, User as UserIcon, ShieldAlert } from 'lucide-react';
+import { 
+  Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, 
+  History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, 
+  Settings, ShoppingBag, Plus, Trash2, LogOut, User as UserIcon, ShieldAlert,
+  Info, HelpCircle, Rocket, Zap, Shield
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useRouter } from 'next/router';
 import { parse } from 'cookie';
@@ -8,7 +13,6 @@ import jwt from 'jsonwebtoken';
 import dbConnect from '../lib/mongodb';
 import User from '../models/User';
 
-// 1. UPDATED: Detects if user is Admin from the Database
 export async function getServerSideProps(context) {
   const { req } = context;
   const cookies = parse(req.headers.cookie || '');
@@ -21,18 +25,13 @@ export async function getServerSideProps(context) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     await dbConnect();
-    
-    // Look up the user to check their current role
     const userDoc = await User.findById(decoded.id);
-    
-    if (!userDoc) {
-        return { redirect: { destination: '/login', permanent: false } };
-    }
+    if (!userDoc) return { redirect: { destination: '/login', permanent: false } };
 
     return { 
         props: { 
             username: userDoc.username,
-            isAdmin: userDoc.role === 'admin' // Sends true/false to the page
+            isAdmin: userDoc.role === 'admin'
         } 
     };
   } catch (err) {
@@ -61,20 +60,33 @@ export default function Home({ username, isAdmin }) {
   const [selectedLog, setSelectedLog] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showGuide, setShowGuide] = useState(false); // NEW: Guide State
 
   const [goals, setGoals] = useState({ weekly: 2000, monthly: 8000 });
   const [perks, setPerks] = useState([]);
 
   const handleLogout = async () => {
     const res = await fetch('/api/auth/logout');
-    if (res.ok) {
-        router.push('/login');
-    }
+    if (res.ok) router.push('/login');
   };
 
+// Updated useEffect to show guide ONLY ONCE automatically
   useEffect(() => { 
     fetchHistory(); 
     fetchSettings();
+
+    // Check if the user has already seen the briefing on this device
+    const hasSeenBriefing = localStorage.getItem('hasSeenMissionBriefing');
+    
+    if (!hasSeenBriefing) {
+        // Show automatically after 1.5 seconds if never seen before
+        const timer = setTimeout(() => {
+            setShowGuide(true);
+            // Save to browser memory so it never auto-shows again
+            localStorage.setItem('hasSeenMissionBriefing', 'true');
+        }, 1500);
+        return () => clearTimeout(timer);
+    }
   }, []);
 
   const fetchSettings = async () => {
@@ -105,7 +117,6 @@ export default function Home({ username, isAdmin }) {
     const data = await res.json();
     setHistory(data);
     
-    // --- STREAK CALCULATION LOGIC ---
     const calculateStreak = (logs) => {
       if (!logs || logs.length === 0) return 0;
       const logDates = [...new Set(logs.map(log => new Date(log.date).toLocaleDateString('en-CA')))].sort((a, b) => new Date(b) - new Date(a));
@@ -143,14 +154,6 @@ export default function Home({ username, isAdmin }) {
         weekly: Math.min(Math.round((last7DaysXp / goals.weekly) * 100), 100),
         monthly: Math.min(Math.round((thisMonthXp / goals.monthly) * 100), 100)
     });
-  };
-
-  const addPerk = () => setPerks([...perks, { label: "New Reward", xp: 1000 }]);
-  const removePerk = (index) => setPerks(perks.filter((_, i) => i !== index));
-  const updatePerk = (index, field, value) => {
-    const newPerks = [...perks];
-    newPerks[index][field] = field === "xp" ? Number(value) : value;
-    setPerks(newPerks);
   };
 
   const spendXP = async (perk) => {
@@ -197,6 +200,59 @@ export default function Home({ username, isAdmin }) {
         <link rel="manifest" href="/manifest.json" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
       </Head>
+
+      {/* GUIDANCE MODAL (How to use the site) */}
+      {showGuide && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+            <div className={`${cardColor} p-8 rounded-[3rem] max-w-2xl w-full border border-yellow-500/30 relative shadow-[0_0_50px_rgba(234,179,8,0.2)]`}>
+                <button onClick={() => setShowGuide(false)} className="absolute top-6 right-6 text-gray-500 hover:text-white"><X size={24}/></button>
+                <div className="flex items-center gap-3 mb-6">
+                    <Rocket className="text-yellow-500" size={32} />
+                    <h2 className="text-3xl font-black italic uppercase tracking-tighter">Mission Briefing</h2>
+                </div>
+                
+                <div className="space-y-6 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
+                    <section>
+                        <h3 className="text-yellow-500 font-bold uppercase text-xs mb-2 tracking-widest flex items-center gap-2"><Zap size={14}/> Purpose</h3>
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                            Mission 2026 is a gamified productivity OS designed to turn your resolutions into a strategic campaign. We believe that goals are reached through daily discipline, not yearly wishes.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h3 className="text-blue-500 font-bold uppercase text-xs mb-2 tracking-widest flex items-center gap-2"><Star size={14}/> How it Works</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p className="font-black text-xs mb-1 uppercase">1. Select Quests</p>
+                                <p className="text-[10px] text-gray-500">Pick which resolutions you worked on today from the dashboard.</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p className="font-black text-xs mb-1 uppercase">2. Earn XP</p>
+                                <p className="text-[10px] text-gray-500">Every quest gives +100 XP. Just writing a log gives you +50 XP.</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p className="font-black text-xs mb-1 uppercase">3. Maintain Streaks</p>
+                                <p className="text-[10px] text-gray-500">Log every day to build your streak. Missing 48 hours resets it to zero.</p>
+                            </div>
+                            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <p className="font-black text-xs mb-1 uppercase">4. Use Perks</p>
+                                <p className="text-[10px] text-gray-500">Spend your earned XP in the Market to reward yourself with guilt-free treats.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="bg-yellow-500/10 p-5 rounded-3xl border border-yellow-500/20">
+                        <h3 className="text-yellow-500 font-bold uppercase text-xs mb-2 tracking-widest">Starting Your Resolution</h3>
+                        <p className="text-gray-300 text-xs italic">
+                            "The best time to start was yesterday. The next best time is right now. Select your first quest above and write your first log to initialize your profile."
+                        </p>
+                    </section>
+                </div>
+                
+                <button onClick={() => setShowGuide(false)} className="w-full mt-8 bg-yellow-500 text-black font-black py-4 rounded-2xl uppercase tracking-widest shadow-xl">Start My Legacy</button>
+            </div>
+        </div>
+      )}
 
       {/* SETTINGS MODAL */}
       {showSettings && (
@@ -269,7 +325,17 @@ export default function Home({ username, isAdmin }) {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto relative">
+        
+        {/* FLOAT HELP BUTTON FOR MOBILE/DESKTOP */}
+        <button 
+            onClick={() => setShowGuide(true)}
+            className="fixed bottom-6 right-6 z-40 p-4 bg-yellow-500 text-black rounded-full shadow-2xl hover:scale-110 transition-all flex items-center gap-2 group"
+        >
+            <HelpCircle size={24} />
+            <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 font-bold uppercase text-[10px] whitespace-nowrap">Briefing</span>
+        </button>
+
         {/* TOP NAV: PROFILE, LOGOUT, AND ADMIN BUTTON */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
@@ -278,15 +344,23 @@ export default function Home({ username, isAdmin }) {
 
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
                 
-                {/* 2. ADMIN DASHBOARD BUTTON: Only visible to admins */}
+                {/* NEW INFO BUTTON */}
+                <button 
+                    onClick={() => setShowGuide(true)}
+                    className={`${cardColor} p-2.5 rounded-xl border border-white/5 hover:text-blue-500 transition-all`}
+                    title="Intelligence Briefing"
+                >
+                    <Info size={20} />
+                </button>
+
                 {isAdmin && (
                     <button 
                         onClick={() => router.push('/admin')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-500 text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all`}
                         title="Admin HQ"
                     >
-                        <ShieldAlert size={16} />
-                        <span className="hidden sm:inline">Admin HQ</span>
+                        <Shield size={16} />
+                        <span className="hidden sm:inline">HQ</span>
                     </button>
                 )}
 
@@ -299,12 +373,9 @@ export default function Home({ username, isAdmin }) {
                         <p className="text-[8px] font-black uppercase text-gray-500 leading-none tracking-widest">Active Soldier</p>
                         <p className="text-xs font-bold text-yellow-500">{username}</p>
                     </div>
-                    
-                    {/* Logout Button */}
                     <button 
                         onClick={handleLogout}
                         className="ml-2 p-2 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
-                        title="Logout"
                     >
                         <LogOut size={18} />
                     </button>
@@ -321,9 +392,6 @@ export default function Home({ username, isAdmin }) {
             </div>
         </div>
 
-        {/* REST OF DASHBOARD (STATS, QUESTS, MARKET, INPUT, TIMELINE) remains same... */}
-        {/* ... (Your existing UI code) ... */}
-        
         {/* STATS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10">
           <div className={`${cardColor} p-5 sm:p-6 rounded-[2rem] border flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0`}>
@@ -423,6 +491,12 @@ export default function Home({ username, isAdmin }) {
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.2); border-radius: 10px; }
+      `}</style>
     </div>
   );
 }
