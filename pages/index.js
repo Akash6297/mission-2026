@@ -93,15 +93,57 @@ export default function Home({ username }) {
     const res = await fetch('/api/get-logs');
     const data = await res.json();
     setHistory(data);
+    
+    // --- STREAK CALCULATION LOGIC ---
+    const calculateStreak = (logs) => {
+      if (!logs || logs.length === 0) return 0;
+
+      // 1. Get unique dates in YYYY-MM-DD format (ignoring time)
+      const logDates = [...new Set(logs.map(log => 
+        new Date(log.date).toLocaleDateString('en-CA') // Format: YYYY-MM-DD
+      ))].sort((a, b) => new Date(b) - new Date(a)); // Sort newest first
+
+      const today = new Date().toLocaleDateString('en-CA');
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+      // 2. Check if the most recent log is today or yesterday
+      // If the latest log is older than yesterday, the streak is 0
+      if (logDates[0] !== today && logDates[0] !== yesterdayStr) {
+        return 0;
+      }
+
+      let streak = 0;
+      let checkDate = new Date(logDates[0]); // Start checking from the latest log date
+
+      for (let i = 0; i < logDates.length; i++) {
+        const currentLogDateStr = logDates[i];
+        const expectedDateStr = checkDate.toLocaleDateString('en-CA');
+
+        if (currentLogDateStr === expectedDateStr) {
+          streak++;
+          // Move checkDate back by one day for the next loop
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          // Gap found in the sequence
+          break;
+        }
+      }
+      return streak;
+    };
+    // --------------------------------
+
     const walletBalance = data.reduce((sum, item) => sum + (item.xpGained || 0), 0);
     
+    // Calculate Progress against dynamic goals
     const last7DaysXp = data.filter(log => {
         const logDate = new Date(log.date);
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return logDate >= sevenDaysAgo && log.type !== "spend";
     }).reduce((sum, item) => sum + (item.xpGained || 0), 0);
-    
+
     const thisMonthXp = data.filter(log => {
         const logDate = new Date(log.date);
         return logDate.getMonth() === new Date().getMonth() && log.type !== "spend";
@@ -109,7 +151,7 @@ export default function Home({ username }) {
 
     setStats({ 
         xp: walletBalance, 
-        streak: data.length > 0 ? 1 : 0, 
+        streak: calculateStreak(data), // Using the new function here
         weekly: Math.min(Math.round((last7DaysXp / goals.weekly) * 100), 100),
         monthly: Math.min(Math.round((thisMonthXp / goals.monthly) * 100), 100)
     });
