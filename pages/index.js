@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, Settings, ShoppingBag, Plus, Trash2, LogOut, User as UserIcon } from 'lucide-react';
+import { Target, Bike, Languages, Briefcase, Users, Camera, MapPin, TrendingUp, History, Star, Flame, Smile, Meh, Frown, Trophy, Pizza, Tv, X, Sun, Moon, Settings, ShoppingBag, Plus, Trash2, LogOut, User as UserIcon, ShieldAlert } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useRouter } from 'next/router';
 import { parse } from 'cookie';
 import jwt from 'jsonwebtoken';
+import dbConnect from '../lib/mongodb';
+import User from '../models/User';
 
-// 1. THIS PART LOADS YOUR DATA AND REDIRECTS IF NOT LOGGED IN
+// 1. UPDATED: Detects if user is Admin from the Database
 export async function getServerSideProps(context) {
   const { req } = context;
   const cookies = parse(req.headers.cookie || '');
@@ -18,9 +20,19 @@ export async function getServerSideProps(context) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    await dbConnect();
+    
+    // Look up the user to check their current role
+    const userDoc = await User.findById(decoded.id);
+    
+    if (!userDoc) {
+        return { redirect: { destination: '/login', permanent: false } };
+    }
+
     return { 
         props: { 
-            username: decoded.username || "Soldier" // Sends username to the page
+            username: userDoc.username,
+            isAdmin: userDoc.role === 'admin' // Sends true/false to the page
         } 
     };
   } catch (err) {
@@ -39,7 +51,7 @@ const initialResolutions = [
   { id: "conn", title: "Networking", icon: <Users />, color: "text-indigo-500" },
 ];
 
-export default function Home({ username }) {
+export default function Home({ username, isAdmin }) {
   const router = useRouter();
   const [update, setUpdate] = useState("");
   const [selectedTasks, setSelectedTasks] = useState([]);
@@ -53,7 +65,6 @@ export default function Home({ username }) {
   const [goals, setGoals] = useState({ weekly: 2000, monthly: 8000 });
   const [perks, setPerks] = useState([]);
 
-  // 2. LOGOUT LOGIC
   const handleLogout = async () => {
     const res = await fetch('/api/auth/logout');
     if (res.ok) {
@@ -97,53 +108,30 @@ export default function Home({ username }) {
     // --- STREAK CALCULATION LOGIC ---
     const calculateStreak = (logs) => {
       if (!logs || logs.length === 0) return 0;
-
-      // 1. Get unique dates in YYYY-MM-DD format (ignoring time)
-      const logDates = [...new Set(logs.map(log => 
-        new Date(log.date).toLocaleDateString('en-CA') // Format: YYYY-MM-DD
-      ))].sort((a, b) => new Date(b) - new Date(a)); // Sort newest first
-
+      const logDates = [...new Set(logs.map(log => new Date(log.date).toLocaleDateString('en-CA')))].sort((a, b) => new Date(b) - new Date(a));
       const today = new Date().toLocaleDateString('en-CA');
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toLocaleDateString('en-CA');
-
-      // 2. Check if the most recent log is today or yesterday
-      // If the latest log is older than yesterday, the streak is 0
-      if (logDates[0] !== today && logDates[0] !== yesterdayStr) {
-        return 0;
-      }
-
+      if (logDates[0] !== today && logDates[0] !== yesterdayStr) return 0;
       let streak = 0;
-      let checkDate = new Date(logDates[0]); // Start checking from the latest log date
-
+      let checkDate = new Date(logDates[0]);
       for (let i = 0; i < logDates.length; i++) {
-        const currentLogDateStr = logDates[i];
-        const expectedDateStr = checkDate.toLocaleDateString('en-CA');
-
-        if (currentLogDateStr === expectedDateStr) {
+        if (logDates[i] === checkDate.toLocaleDateString('en-CA')) {
           streak++;
-          // Move checkDate back by one day for the next loop
           checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          // Gap found in the sequence
-          break;
-        }
+        } else break;
       }
       return streak;
     };
-    // --------------------------------
 
     const walletBalance = data.reduce((sum, item) => sum + (item.xpGained || 0), 0);
-    
-    // Calculate Progress against dynamic goals
     const last7DaysXp = data.filter(log => {
         const logDate = new Date(log.date);
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return logDate >= sevenDaysAgo && log.type !== "spend";
     }).reduce((sum, item) => sum + (item.xpGained || 0), 0);
-
     const thisMonthXp = data.filter(log => {
         const logDate = new Date(log.date);
         return logDate.getMonth() === new Date().getMonth() && log.type !== "spend";
@@ -151,7 +139,7 @@ export default function Home({ username }) {
 
     setStats({ 
         xp: walletBalance, 
-        streak: calculateStreak(data), // Using the new function here
+        streak: calculateStreak(data),
         weekly: Math.min(Math.round((last7DaysXp / goals.weekly) * 100), 100),
         monthly: Math.min(Math.round((thisMonthXp / goals.monthly) * 100), 100)
     });
@@ -282,20 +270,33 @@ export default function Home({ username }) {
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* 3. UPDATED TOP NAV WITH PROFILE & LOGOUT */}
+        {/* TOP NAV: PROFILE, LOGOUT, AND ADMIN BUTTON */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 className="text-3xl sm:text-5xl font-black italic tracking-tighter uppercase opacity-10 select-none">Mission 2026</h1>
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                
+                {/* 2. ADMIN DASHBOARD BUTTON: Only visible to admins */}
+                {isAdmin && (
+                    <button 
+                        onClick={() => router.push('/admin')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-500 text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all`}
+                        title="Admin HQ"
+                    >
+                        <ShieldAlert size={16} />
+                        <span className="hidden sm:inline">Admin HQ</span>
+                    </button>
+                )}
+
                 {/* User Profile Card */}
                 <div className={`${cardColor} flex items-center gap-3 px-4 py-2 rounded-2xl border border-white/5`}>
                     <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-black font-black uppercase text-sm">
                         {username.charAt(0)}
                     </div>
                     <div className="hidden sm:block">
-                        <p className="text-[8px] font-black uppercase text-gray-500 leading-none tracking-widest">Logged In As</p>
+                        <p className="text-[8px] font-black uppercase text-gray-500 leading-none tracking-widest">Active Soldier</p>
                         <p className="text-xs font-bold text-yellow-500">{username}</p>
                     </div>
                     
@@ -320,6 +321,9 @@ export default function Home({ username }) {
             </div>
         </div>
 
+        {/* REST OF DASHBOARD (STATS, QUESTS, MARKET, INPUT, TIMELINE) remains same... */}
+        {/* ... (Your existing UI code) ... */}
+        
         {/* STATS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10">
           <div className={`${cardColor} p-5 sm:p-6 rounded-[2rem] border flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0`}>
@@ -368,14 +372,14 @@ export default function Home({ username }) {
                     {perks.length > 0 ? perks.map((r, i) => (
                         <button key={i} onClick={() => spendXP(r)} disabled={stats.xp < r.xp}
                             className={`flex items-center gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all flex-1 min-w-[140px] sm:flex-none ${
-                                stats.xp >= r.xp ? 'bg-blue-500 text-black border-blue-400' : 'bg-gray-500/5 border-black/5 opacity-20 cursor-not-allowed grayscale shadow-inner'
+                                stats.xp >= r.xp ? 'bg-blue-500 text-black border-blue-400 hover:scale-105 active:scale-95 cursor-pointer' : 'bg-gray-500/5 border-black/5 opacity-20 cursor-not-allowed grayscale shadow-inner'
                             }`}>
                             <div className="text-[9px] sm:text-[11px] font-black uppercase flex flex-col items-start leading-tight">
                                 <span>{r.label}</span>
                                 <span className="opacity-60 text-[8px]">{r.xp} XP</span>
                             </div>
                         </button>
-                    )) : ( <p className="text-xs text-gray-500 italic">No rewards set. Click the gear icon to add some!</p> )}
+                    )) : ( <p className="text-xs text-gray-500 italic">No rewards set.</p> )}
                 </div>
             </div>
 
