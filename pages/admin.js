@@ -196,34 +196,78 @@ export default function AdminDashboard({ adminId }) {
             )}
 
             {/* TAB 2: BROADCAST */}
-            {activeTab === 'email' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">Broadcast HQ</h1>
-                        <p className="text-gray-500 text-sm italic">Manual override and mission alerts.</p>
+            {/* TAB 2: BROADCAST */}
+{activeTab === 'email' && (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-10">
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">Broadcast HQ</h1>
+            <p className="text-gray-500 text-sm italic">Manual override and mission alerts.</p>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+            <div className="xl:col-span-5 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
+                
+                {/* 1. SUBJECT INPUT */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Subject</label>
+                  <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" placeholder="Subject" />
+                </div>
+
+                {/* 2. COLOR PICKER PLACEMENT (HERE) */}
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Branding Color</label>
+                  <div className="flex gap-3 flex-wrap">
+                    {['#eab308', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6', '#f472b6'].map(c => (
+                      <button 
+                        key={c} 
+                        type="button"
+                        onClick={() => setPrimaryColor(c)} 
+                        className={`w-10 h-10 rounded-full border-4 transition-all ${primaryColor === c ? 'border-white scale-110 shadow-lg shadow-white/20' : 'border-transparent opacity-50'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                    <input 
+                      type="color" 
+                      value={primaryColor} 
+                      onChange={(e) => setPrimaryColor(e.target.value)} 
+                      className="w-10 h-10 bg-transparent border-none cursor-pointer rounded-full overflow-hidden" 
+                    />
+                  </div>
+                </div>
+
+                {/* 3. MESSAGE TEXTAREA */}
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Message content</label>
+                  <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-64 outline-none focus:border-yellow-500 text-sm" placeholder="Content..." />
+                </div>
+
+                <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] uppercase tracking-widest hover:bg-yellow-400">
+                    {status || "Deploy Broadcast"}
+                </button>
+            </div>
+
+            {/* PREVIEW WINDOW (SAME AS BEFORE) */}
+            <div className="xl:col-span-7">
+                <div className="bg-[#e5e7eb] rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl h-fit sticky top-10 border border-white/10">
+                    <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-400" /><div className="w-3 h-3 rounded-full bg-yellow-400" /><div className="w-3 h-3 rounded-full bg-green-400" />
                     </div>
-                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-                        <div className="xl:col-span-5 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
-                            <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" placeholder="Subject" />
-                            <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-64 outline-none focus:border-yellow-500 text-sm" placeholder="Content..." />
-                            <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] uppercase tracking-widest">{status || "Deploy Broadcast"}</button>
+                    <div className="p-8 bg-white max-h-[600px] overflow-auto">
+                        {/* PREVIEW BOX UPDATES DYNAMICALLY WITH PRIMARYCOLOR */}
+                        <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
+                            <h1 style={{margin: 0, fontSize: '20px', textTransform: 'uppercase'}}>{subject}</h1>
                         </div>
-                        <div className="xl:col-span-7 bg-[#e5e7eb] rounded-[3rem] p-1 text-black shadow-2xl overflow-hidden h-fit sticky top-10 border border-white/10">
-                            <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
-                                <div className="w-3 h-3 rounded-full bg-red-400" /><div className="w-3 h-3 rounded-full bg-yellow-400" /><div className="w-3 h-3 rounded-full bg-green-400" />
-                            </div>
-                            <div className="p-8 bg-white max-h-[600px] overflow-auto">
-                                <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
-                                    <h1 style={{margin: 0, fontSize: '20px'}}>{subject}</h1>
-                                </div>
-                                <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
-                                    "{message.replace(/{username}/g, "Authorized_Soldier")}"
-                                </div>
-                            </div>
+                        <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
+                            "{message.replace(/{username}/g, username)}"
+                        </div>
+                        <div style={{textAlign: 'center'}}>
+                            <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: primaryColor, color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px'}}>MISSION CONTROL</div>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+        </div>
+    </div>
+)}
 
             {/* TAB 3: CALENDAR */}
             {activeTab === 'calendar' && (
