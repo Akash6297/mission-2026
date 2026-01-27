@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import dbConnect from '../lib/mongodb';
 import User from '../models/User';
 
+// 1. Updated getServerSideProps to include 'username'
 export async function getServerSideProps(context) {
     const { req } = context;
     const cookies = parse(req.headers.cookie || '');
@@ -19,12 +20,19 @@ export async function getServerSideProps(context) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         await dbConnect();
         const user = await User.findById(decoded.id);
+        
         if (!user || user.role !== 'admin') return { redirect: { destination: '/', permanent: false } };
-        return { props: { adminId: decoded.id } };
+        
+        return { 
+            props: { 
+                adminId: decoded.id,
+                username: user.username // Pass the admin's name here
+            } 
+        };
     } catch { return { redirect: { destination: '/login', permanent: false } }; }
 }
 
-export default function AdminDashboard({ adminId }) {
+export default function AdminDashboard({ adminId, username }) {
   const [activeTab, setActiveTab] = useState('users'); 
   const [users, setUsers] = useState([]);
   const [subject, setSubject] = useState("NEW MISSION UPDATE");
