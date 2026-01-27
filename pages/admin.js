@@ -3,14 +3,13 @@ import Head from 'next/head';
 import { 
   ShieldAlert, Send, Users, Trash2, Eye, Type, 
   ShieldCheck, UserCog, X, Calendar, CheckCircle, 
-  Mail, BookOpen, Settings2, BellRing, BellOff 
+  Mail, BookOpen, Settings2, BellRing, BellOff, Sun, Moon 
 } from 'lucide-react';
 import { parse } from 'cookie';
 import jwt from 'jsonwebtoken';
 import dbConnect from '../lib/mongodb';
 import User from '../models/User';
 
-// 1. Updated getServerSideProps to include 'username'
 export async function getServerSideProps(context) {
     const { req } = context;
     const cookies = parse(req.headers.cookie || '');
@@ -20,13 +19,11 @@ export async function getServerSideProps(context) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         await dbConnect();
         const user = await User.findById(decoded.id);
-        
         if (!user || user.role !== 'admin') return { redirect: { destination: '/', permanent: false } };
-        
         return { 
             props: { 
                 adminId: decoded.id,
-                username: user.username // Pass the admin's name here
+                username: user.username 
             } 
         };
     } catch { return { redirect: { destination: '/login', permanent: false } }; }
@@ -40,8 +37,9 @@ export default function AdminDashboard({ adminId, username }) {
   const [primaryColor, setPrimaryColor] = useState("#eab308"); 
   const [status, setStatus] = useState("");
 
-  // MAIL CONTROL STATES
-  const [mailActive, setMailActive] = useState(true);
+  // FIXED: DEFINED MAIL CONTROL STATES
+  const [mailMorningActive, setMailMorningActive] = useState(true);
+  const [mailEveningActive, setMailEveningActive] = useState(true);
   const [mailTarget, setMailTarget] = useState('both');
 
   const [calendar, setCalendar] = useState([]);
@@ -58,19 +56,26 @@ export default function AdminDashboard({ adminId, username }) {
     try {
         const res = await fetch('/api/admin/global-settings');
         const data = await res.json();
-        setMailActive(data.isMailActive);
-        setMailTarget(data.mailTarget);
+        // Sync states with DB data
+        setMailMorningActive(data.isMorningActive ?? true);
+        setMailEveningActive(data.isEveningActive ?? true);
+        setMailTarget(data.mailTarget || 'both');
     } catch (err) { console.error("Error fetching global settings"); }
   };
 
-  const saveGlobalSettings = async (isActive, target) => {
+  const saveGlobalSettings = async (morning, evening, target) => {
     try {
         await fetch('/api/admin/global-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isMailActive: isActive, mailTarget: target })
+            body: JSON.stringify({ 
+                isMorningActive: morning, 
+                isEveningActive: evening, 
+                mailTarget: target 
+            })
         });
-        setMailActive(isActive);
+        setMailMorningActive(morning);
+        setMailEveningActive(evening);
         setMailTarget(target);
     } catch (err) { alert("Failed to update global settings"); }
   };
