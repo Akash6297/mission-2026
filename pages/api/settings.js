@@ -25,4 +25,14 @@ export default async function handler(req, res) {
     );
     return res.status(200).json(updated);
   }
+
+  if (req.method === 'POST') {
+    const { isMorningActive, isEveningActive, mailTarget } = req.body;
+    const updated = await GlobalSetting.findOneAndUpdate(
+      { configId: "master_config" },
+      { isMorningActive, isEveningActive, mailTarget },
+      { upsert: true, new: true }
+    );
+    return res.status(200).json(updated);
+}
 }
