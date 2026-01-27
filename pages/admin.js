@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { 
   ShieldAlert, Send, Users, Trash2, Eye, Type, 
   ShieldCheck, UserCog, X, Calendar, CheckCircle, 
-  LayoutDashboard, Mail, BookOpen
+  Mail, BookOpen, Settings2, BellRing, BellOff 
 } from 'lucide-react';
 import { parse } from 'cookie';
 import jwt from 'jsonwebtoken';
@@ -25,12 +25,16 @@ export async function getServerSideProps(context) {
 }
 
 export default function AdminDashboard({ adminId }) {
-  const [activeTab, setActiveTab] = useState('users'); // 'users', 'email', 'calendar'
+  const [activeTab, setActiveTab] = useState('users'); 
   const [users, setUsers] = useState([]);
   const [subject, setSubject] = useState("NEW MISSION UPDATE");
   const [message, setMessage] = useState("Hello {username}, we have a new announcement...");
   const [primaryColor, setPrimaryColor] = useState("#eab308"); 
   const [status, setStatus] = useState("");
+
+  // MAIL CONTROL STATES
+  const [mailActive, setMailActive] = useState(true);
+  const [mailTarget, setMailTarget] = useState('both');
 
   const [calendar, setCalendar] = useState([]);
   const [calForm, setCalForm] = useState({ day: 1, subject: '', story: '' });
@@ -39,7 +43,29 @@ export default function AdminDashboard({ adminId }) {
   useEffect(() => { 
     fetchUsers(); 
     fetchCalendar();
+    fetchGlobalSettings();
   }, []);
+
+  const fetchGlobalSettings = async () => {
+    try {
+        const res = await fetch('/api/admin/global-settings');
+        const data = await res.json();
+        setMailActive(data.isMailActive);
+        setMailTarget(data.mailTarget);
+    } catch (err) { console.error("Error fetching global settings"); }
+  };
+
+  const saveGlobalSettings = async (isActive, target) => {
+    try {
+        await fetch('/api/admin/global-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isMailActive: isActive, mailTarget: target })
+        });
+        setMailActive(isActive);
+        setMailTarget(target);
+    } catch (err) { alert("Failed to update global settings"); }
+  };
 
   const fetchUsers = async () => {
     const res = await fetch('/api/admin/users');
@@ -105,24 +131,24 @@ export default function AdminDashboard({ adminId }) {
     <div className="min-h-screen bg-[#050505] text-white font-sans transition-colors duration-500">
       <Head><title>ADMIN HQ | MISSION 2026</title></Head>
       
-      {/* SIDEBAR NAVIGATION (Desktop) / TOP NAV (Mobile) */}
       <div className="flex flex-col lg:flex-row min-h-screen">
         
-        {/* Navigation Panel */}
+        {/* Sidebar Navigation */}
         <aside className="w-full lg:w-72 bg-[#0a0a0c] border-b lg:border-b-0 lg:border-r border-white/5 p-6 space-y-8 shrink-0">
             <div className="flex items-center gap-3 mb-10">
                 <div className="p-3 bg-red-600 rounded-xl shadow-lg shadow-red-600/20"><ShieldAlert size={24}/></div>
                 <div>
-                    <h2 className="text-xl font-black italic tracking-tighter uppercase">Command</h2>
+                    <h2 className="text-xl font-black italic tracking-tighter uppercase">HQ Control</h2>
                     <p className="text-[8px] text-red-500 font-bold tracking-[0.3em]">SECURE ACCESS</p>
                 </div>
             </div>
 
-            <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar">
+            <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-4 lg:pb-0">
                 {[
                     { id: 'users', label: 'User Registry', icon: <Users size={18}/> },
                     { id: 'email', label: 'Broadcast HQ', icon: <Mail size={18}/> },
                     { id: 'calendar', label: 'Motivation', icon: <Calendar size={18}/> },
+                    { id: 'mail_control', label: 'Mail Control', icon: <Settings2 size={18}/> },
                 ].map(tab => (
                     <button 
                         key={tab.id}
@@ -135,48 +161,33 @@ export default function AdminDashboard({ adminId }) {
                     </button>
                 ))}
             </nav>
-
-            <div className="hidden lg:block pt-10 border-t border-white/5">
-                <p className="text-[10px] text-gray-600 font-bold uppercase mb-2">Soldiers Online</p>
-                <p className="text-3xl font-black text-white/20">{users.length}</p>
-            </div>
         </aside>
 
-        {/* Main Workspace */}
+        {/* Main Content Area */}
         <main className="flex-1 p-4 md:p-10 lg:p-16 max-w-7xl">
             
-            {/* VIEW 1: USER REGISTRY */}
+            {/* TAB 1: USERS */}
             {activeTab === 'users' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2">User Registry</h1>
-                        <p className="text-gray-500 text-sm">Manage access levels and personnel database.</p>
+                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">User Registry</h1>
+                        <p className="text-gray-500 text-sm italic">Control access and personnel roles.</p>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {users.map(u => (
-                            <div key={u._id} className={`p-6 rounded-[2.5rem] border ${u.role === 'admin' ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0f0f12] border-white/5'} transition-all`}>
+                            <div key={u._id} className={`p-6 rounded-[2.5rem] border ${u.role === 'admin' ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0f0f12] border-white/5'}`}>
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl font-black text-gray-500">
                                         {u.username.charAt(0).toUpperCase()}
                                     </div>
                                     {u._id !== adminId && (
-                                        <button onClick={() => deleteUser(u._id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors">
-                                            <Trash2 size={18}/>
-                                        </button>
+                                        <button onClick={() => deleteUser(u._id)} className="p-2 text-gray-600 hover:text-red-500"><Trash2 size={18}/></button>
                                     )}
                                 </div>
-                                <h3 className="font-black text-lg uppercase tracking-tight truncate">{u.username}</h3>
+                                <h3 className="font-black text-lg uppercase tracking-tight truncate text-white">{u.username}</h3>
                                 <p className="text-xs text-gray-500 mb-6 truncate">{u.email}</p>
-                                
-                                <button 
-                                    onClick={() => toggleRole(u._id, u.role)}
-                                    className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
-                                        u.role === 'admin' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                                    }`}
-                                >
-                                    {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>}
-                                    {u.role} Access
+                                <button onClick={() => toggleRole(u._id, u.role)} className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400'}`}>
+                                    {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>} {u.role} Access
                                 </button>
                             </div>
                         ))}
@@ -184,59 +195,29 @@ export default function AdminDashboard({ adminId }) {
                 </div>
             )}
 
-            {/* VIEW 2: BROADCAST HQ */}
+            {/* TAB 2: BROADCAST */}
             {activeTab === 'email' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2">Broadcast HQ</h1>
-                        <p className="text-gray-500 text-sm">Design and deploy global mission updates.</p>
+                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">Broadcast HQ</h1>
+                        <p className="text-gray-500 text-sm italic">Manual override and mission alerts.</p>
                     </div>
-
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-                        <div className="xl:col-span-5 space-y-6">
-                            <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Subject</label>
-                                    <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Branding Color</label>
-                                    <div className="flex gap-2">
-                                        {['#eab308', '#3b82f6', '#ef4444', '#10b981'].map(c => (
-                                            <button key={c} onClick={() => setPrimaryColor(c)} className={`w-8 h-8 rounded-full border-2 ${primaryColor === c ? 'border-white' : 'border-transparent'}`} style={{backgroundColor: c}} />
-                                        ))}
-                                        <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-8 h-8 bg-transparent border-none cursor-pointer" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Message content</label>
-                                    <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 h-64 text-sm" />
-                                </div>
-                                <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] text-sm uppercase tracking-widest shadow-xl hover:bg-yellow-400">
-                                    {status || "Deploy Broadcast"}
-                                </button>
-                            </div>
+                        <div className="xl:col-span-5 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
+                            <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" placeholder="Subject" />
+                            <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-64 outline-none focus:border-yellow-500 text-sm" placeholder="Content..." />
+                            <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] uppercase tracking-widest">{status || "Deploy Broadcast"}</button>
                         </div>
-
-                        <div className="xl:col-span-7">
-                            <div className="bg-[#e5e7eb] rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl h-fit sticky top-10">
-                                <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                                    <div className="w-3 h-3 rounded-full bg-green-400" />
+                        <div className="xl:col-span-7 bg-[#e5e7eb] rounded-[3rem] p-1 text-black shadow-2xl overflow-hidden h-fit sticky top-10 border border-white/10">
+                            <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-400" /><div className="w-3 h-3 rounded-full bg-yellow-400" /><div className="w-3 h-3 rounded-full bg-green-400" />
+                            </div>
+                            <div className="p-8 bg-white max-h-[600px] overflow-auto">
+                                <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
+                                    <h1 style={{margin: 0, fontSize: '20px'}}>{subject}</h1>
                                 </div>
-                                <div className="p-8 overflow-auto max-h-[600px] custom-scrollbar">
-                                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden max-w-lg mx-auto border border-gray-200">
-                                        <div style={{backgroundColor: primaryColor, padding: '40px', textAlign: 'center', color: '#fff'}}>
-                                            <h1 style={{margin: 0, fontSize: '24px', textTransform: 'uppercase'}}>{subject}</h1>
-                                        </div>
-                                        <div style={{padding: '40px', color: '#444', lineHeight: '1.6'}}>
-                                            <p style={{whiteSpace: 'pre-wrap'}}>{message.replace(/{username}/g, "Akash")}</p>
-                                            <div style={{textAlign: 'center', marginTop: '30px'}}>
-                                                <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: primaryColor, color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px'}}>GO TO DASHBOARD</div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
+                                    "{message.replace(/{username}/g, "Authorized_Soldier")}"
                                 </div>
                             </div>
                         </div>
@@ -244,48 +225,34 @@ export default function AdminDashboard({ adminId }) {
                 </div>
             )}
 
-            {/* VIEW 3: MOTIVATION CALENDAR */}
+            {/* TAB 3: CALENDAR */}
             {activeTab === 'calendar' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2">Motivation Pipeline</h1>
-                        <p className="text-gray-500 text-sm">Schedule automated inspiring stories for the week.</p>
+                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-green-500">Motivation Pipeline</h1>
+                        <p className="text-gray-500 text-sm italic">Automated story sequences for the week.</p>
                     </div>
-
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6 h-fit">
-                            <h2 className="text-sm font-black uppercase text-green-500 tracking-widest mb-4">Add To Schedule</h2>
+                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
-                                <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})}
-                                    className="bg-black/40 border border-white/10 p-4 rounded-2xl outline-none text-xs font-black uppercase text-yellow-500">
+                                <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-yellow-500 font-bold outline-none">
                                     {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
                                 </select>
-                                <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} 
-                                    className="bg-black/40 border border-white/10 p-4 rounded-2xl outline-none text-xs" placeholder="Subject" />
+                                <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} className="bg-black/40 border border-white/10 p-4 rounded-2xl outline-none" placeholder="Subject" />
                             </div>
-                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} 
-                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 text-sm" placeholder="Tell a story... use {username}" />
-                            <button onClick={saveToCalendar} className="w-full bg-green-600 text-white font-black py-5 rounded-[2rem] text-sm uppercase tracking-widest hover:bg-green-500">
-                                ARM SCHEDULE FOR {days[calForm.day].toUpperCase()}
-                            </button>
+                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none" placeholder="The Story..." />
+                            <button onClick={saveToCalendar} className="w-full bg-green-600 font-black py-4 rounded-2xl uppercase tracking-widest">Arm Schedule</button>
                         </div>
-
-                        <div className="space-y-4">
-                            <h2 className="text-[10px] font-black uppercase text-gray-600 tracking-[0.3em] mb-4">Pipeline Status</h2>
+                        <div className="space-y-3">
                             {days.map((d, i) => {
-                                const scheduled = calendar.find(c => c.dayOfWeek === i);
+                                const s = calendar.find(c => c.dayOfWeek === i);
                                 return (
-                                    <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${scheduled ? 'bg-green-500/5 border-green-500/30' : 'bg-black/20 border-white/5'}`}>
+                                    <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between ${s ? 'bg-green-500/5 border-green-500/30' : 'bg-black/20 border-white/5 opacity-50'}`}>
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-2 h-2 rounded-full ${scheduled ? 'bg-green-500 animate-pulse shadow-[0_0_10px_green]' : 'bg-gray-800'}`} />
-                                            <div>
-                                                <p className="text-[10px] font-black text-gray-600 uppercase">{d}</p>
-                                                <p className={`text-sm font-bold ${scheduled ? 'text-white' : 'text-gray-700'}`}>
-                                                    {scheduled ? scheduled.subject : 'System Idle'}
-                                                </p>
-                                            </div>
+                                            <div className={`w-2 h-2 rounded-full ${s ? 'bg-green-500' : 'bg-gray-700'}`} />
+                                            <div><p className="text-[10px] font-black text-gray-500 uppercase">{d}</p><p className="text-sm font-bold">{s ? s.subject : 'Vacant'}</p></div>
                                         </div>
-                                        {scheduled && <button onClick={() => setCalForm({day: i, subject: scheduled.subject, story: scheduled.story})} className="text-[10px] font-black text-yellow-500 hover:underline">Edit</button>}
+                                        {s && <button onClick={() => setCalForm({day: i, subject: s.subject, story: s.story})} className="text-[10px] font-black text-yellow-500">Edit</button>}
                                     </div>
                                 )
                             })}
@@ -293,12 +260,56 @@ export default function AdminDashboard({ adminId }) {
                     </div>
                 </div>
             )}
+
+            {/* TAB 4: MAIL CONTROL */}
+            {activeTab === 'mail_control' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="mb-10">
+                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-blue-500">Mail Master Control</h1>
+                        <p className="text-gray-500 text-sm italic">Oversee global automation triggers.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 flex flex-col items-center text-center">
+                            <h3 className="text-sm font-black uppercase text-gray-500 mb-8 tracking-widest">Automation Engine</h3>
+                            <button 
+                                onClick={() => saveGlobalSettings(!mailActive, mailTarget)}
+                                className={`w-32 h-32 rounded-full transition-all flex items-center justify-center border-8 ${mailActive ? 'bg-green-600/10 border-green-600 text-green-500 shadow-[0_0_30px_rgba(22,163,74,0.3)]' : 'bg-red-600/10 border-red-600 text-red-500 shadow-[0_0_30px_rgba(220,38,38,0.3)]'}`}
+                            >
+                                {mailActive ? <BellRing size={48}/> : <BellOff size={48}/>}
+                            </button>
+                            <p className="mt-8 text-xl font-black uppercase">{mailActive ? 'System Live' : 'System Paused'}</p>
+                            <p className="text-xs text-gray-600 mt-2">Reminders will {mailActive ? 'continue' : 'cease'} for all recipients.</p>
+                        </div>
+
+                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5">
+                            <h3 className="text-sm font-black uppercase text-gray-500 mb-8 tracking-widest text-center">Target Audience</h3>
+                            <div className="space-y-4">
+                                {[
+                                    {id: 'users', label: 'Active Soldiers Only'},
+                                    {id: 'admins', label: 'Commanders Only'},
+                                    {id: 'both', label: 'Entire Fleet'}
+                                ].map(t => (
+                                    <button 
+                                        key={t.id}
+                                        onClick={() => saveGlobalSettings(mailActive, t.id)}
+                                        className={`w-full p-6 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all ${
+                                            mailTarget === t.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-black/40 border-white/5 text-gray-500'
+                                        }`}
+                                    >
+                                        {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </main>
       </div>
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
       `}</style>

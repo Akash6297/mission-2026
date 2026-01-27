@@ -1,12 +1,26 @@
 import nodemailer from 'nodemailer';
 import dbConnect from '../../../lib/mongodb';
 import User from '../../../models/User';
+import GlobalSetting from '../../../models/GlobalSetting';
 
 export default async function handler(req, res) {
   await dbConnect();
 
   try {
-    const users = await User.find({});
+    // 1. FETCH GLOBAL SETTINGS
+    const globalConfig = await GlobalSetting.findOne({ configId: "master_config" }) || { isMailActive: true, mailTarget: "both" };
+
+    // 2. CHECK MASTER SWITCH
+    if (!globalConfig.isMailActive) {
+      return res.status(200).json({ message: "Evening mailing is currently disabled by Master Switch." });
+    }
+
+    // 3. DEFINE TARGET AUDIENCE
+    let userQuery = {};
+    if (globalConfig.mailTarget === 'users') userQuery = { role: 'user' };
+    else if (globalConfig.mailTarget === 'admins') userQuery = { role: 'admin' };
+
+    const users = await User.find(userQuery);
     
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -28,11 +42,10 @@ export default async function handler(req, res) {
           </div>
         `,
       };
-
       await transporter.sendMail(mailOptions);
     }
 
-    res.status(200).json({ message: `Evening reminders sent to ${users.length} soldiers.` });
+    res.status(200).json({ message: `Evening reminders sent to ${users.length} recipients (${globalConfig.mailTarget})` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
