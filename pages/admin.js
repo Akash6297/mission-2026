@@ -277,41 +277,111 @@ export default function AdminDashboard({ adminId, username }) {
     </div>
 )}
 
-            {/* TAB 3: CALENDAR */}
-            {activeTab === 'calendar' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-green-500">Motivation Pipeline</h1>
-                        <p className="text-gray-500 text-sm italic">Automated story sequences for the week.</p>
-                    </div>
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
-                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-yellow-500 font-bold outline-none">
-                                    {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                                </select>
-                                <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} className="bg-black/40 border border-white/10 p-4 rounded-2xl outline-none" placeholder="Subject" />
-                            </div>
-                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none" placeholder="The Story..." />
-                            <button onClick={saveToCalendar} className="w-full bg-green-600 font-black py-4 rounded-2xl uppercase tracking-widest">Arm Schedule</button>
+{/* TAB 3: MOTIVATION PIPELINE */}
+{activeTab === 'calendar' && (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-10">
+            <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-green-500">Motivation Pipeline</h1>
+            <p className="text-gray-500 text-sm italic">Automate your leadership by scheduling weekly inspiring stories.</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Form Side */}
+            <div className="lg:col-span-4 space-y-6">
+                <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6 shadow-2xl">
+                    <h2 className="text-xs font-black uppercase text-green-500 tracking-[0.2em] mb-4">Composer</h2>
+                    
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">Execution Day</label>
+                            <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})} 
+                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl text-yellow-500 font-bold outline-none focus:border-green-500 transition-all mt-1">
+                                {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                            </select>
                         </div>
-                        <div className="space-y-3">
-                            {days.map((d, i) => {
-                                const s = calendar.find(c => c.dayOfWeek === i);
-                                return (
-                                    <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between ${s ? 'bg-green-500/5 border-green-500/30' : 'bg-black/20 border-white/5 opacity-50'}`}>
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-2 h-2 rounded-full ${s ? 'bg-green-500' : 'bg-gray-700'}`} />
-                                            <div><p className="text-[10px] font-black text-gray-500 uppercase">{d}</p><p className="text-sm font-bold">{s ? s.subject : 'Vacant'}</p></div>
-                                        </div>
-                                        {s && <button onClick={() => setCalForm({day: i, subject: s.subject, story: s.story})} className="text-[10px] font-black text-yellow-500">Edit</button>}
-                                    </div>
-                                )
-                            })}
+
+                        <div>
+                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">Story Subject</label>
+                            <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} 
+                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-green-500 text-sm mt-1" placeholder="e.g. The Power of Consistency" />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">The Narrative (Use {'{username}'})</label>
+                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} 
+                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none focus:border-green-500 text-sm leading-relaxed mt-1" 
+                                placeholder="Once upon a time, {username} decided to never give up..." />
+                        </div>
+
+                        <button onClick={saveToCalendar} className="w-full bg-green-600 text-white font-black py-5 rounded-[2rem] uppercase tracking-widest shadow-lg shadow-green-900/20 hover:bg-green-500 transition-all active:scale-95">
+                            Arm {days[calForm.day]} Pipeline
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Preview Side */}
+            <div className="lg:col-span-4">
+                <div className="sticky top-10 space-y-4">
+                    <h2 className="text-[10px] font-black uppercase text-gray-500 tracking-[0.3em] ml-4 flex items-center gap-2">
+                        <Eye size={14}/> Inbox Preview
+                    </h2>
+                    {/* Simulated Email Template */}
+                    <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-200 min-h-[500px]">
+                        <div style={{backgroundColor: '#10b981', padding: '40px 20px', textAlign: 'center', color: '#fff'}}>
+                            <h1 style={{margin: 0, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '2px', fontStyle: 'italic'}}>{calForm.subject || "Subject Placeholder"}</h1>
+                        </div>
+                        <div style={{padding: '30px', color: '#334155', fontFamily: 'serif', lineHeight: '1.8', fontSize: '15px'}}>
+                            <p style={{marginBottom: '20px'}}>Greetings, <strong>Soldier {username}</strong>.</p>
+                            <div style={{borderLeft: '4px solid #10b981', paddingLeft: '15px', fontStyle: 'italic'}}>
+                                {calForm.story ? calForm.story.replace(/{username}/g, username) : "Your inspiring story will appear here as you type..."}
+                            </div>
+                            <div style={{textAlign: 'center', marginTop: '40px'}}>
+                                <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: '#000', color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase'}}>LOG TODAY'S MISSION</div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+
+            {/* List Side */}
+            <div className="lg:col-span-4">
+                <h2 className="text-[10px] font-black uppercase text-gray-500 tracking-[0.3em] mb-4 ml-4">Current Schedule</h2>
+                <div className="space-y-3 pr-2 custom-scrollbar overflow-y-auto max-h-[700px]">
+                    {days.map((d, i) => {
+                        const s = calendar.find(c => c.dayOfWeek === i);
+                        return (
+                            <div key={i} className={`p-5 rounded-[2rem] border transition-all flex items-center justify-between group ${s ? 'bg-green-500/5 border-green-500/20' : 'bg-black/20 border-white/5 opacity-40'}`}>
+                                <div className="flex items-center gap-4 truncate">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${s ? 'bg-green-500 animate-pulse' : 'bg-gray-700'}`} />
+                                    <div className="truncate">
+                                        <p className="text-[10px] font-black text-gray-600 uppercase">{d}</p>
+                                        <p className="text-sm font-bold truncate text-white">{s ? s.subject : 'System Idle'}</p>
+                                    </div>
+                                </div>
+                                {s && (
+                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => setCalForm({day: i, subject: s.subject, story: s.story})} className="p-2 bg-white/5 rounded-full text-yellow-500 hover:bg-white/10"><Type size={14}/></button>
+                                        <button onClick={async () => {
+                                            if(confirm(`Clear ${d}?`)) {
+                                                await fetch('/api/admin/motivation', {
+                                                    method: 'DELETE',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ dayOfWeek: i })
+                                                });
+                                                fetchCalendar();
+                                            }
+                                        }} className="p-2 bg-white/5 rounded-full text-red-500 hover:bg-white/10"><Trash2 size={14}/></button>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        </div>
+    </div>
+)}
 
             {/* TAB 4: MAIL CONTROL */}
             {activeTab === 'mail_control' && (
