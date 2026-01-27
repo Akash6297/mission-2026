@@ -16,10 +16,10 @@ export default async function handler(req, res) {
 
   try {
     // 1. FETCH GLOBAL SETTINGS
-    const globalConfig = await GlobalSetting.findOne({ configId: "master_config" }) || { isMailActive: true, mailTarget: "both" };
+    const globalConfig = await GlobalSetting.findOne({ configId: "master_config" }) || { isMorningActive: true, isEveningActive: true, mailTarget: "both" };
 
-    if (!globalConfig.isMailActive) {
-      return res.status(200).json({ message: "Mailing system is currently disabled by Admin." });
+    if (!globalConfig.isMorningActive) {
+        return res.status(200).json({ message: "Morning briefings are currently disabled." });
     }
 
     // 2. DEFINE TARGET AUDIENCE

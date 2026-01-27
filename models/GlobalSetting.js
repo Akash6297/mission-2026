@@ -1,9 +1,10 @@
 import mongoose from 'mongoose';
 
 const GlobalSettingSchema = new mongoose.Schema({
-  configId: { type: String, default: "master_config" }, // Helper to find the single doc
-  isMailActive: { type: Boolean, default: true },
-  mailTarget: { type: String, default: "both" }, // "users", "admins", "both"
+  configId: { type: String, default: "master_config" },
+  isMorningActive: { type: Boolean, default: true }, // Independent Switch
+  isEveningActive: { type: Boolean, default: true }, // Independent Switch
+  mailTarget: { type: String, default: "both" },
 });
 
 export default mongoose.models.GlobalSetting || mongoose.model('GlobalSetting', GlobalSettingSchema);

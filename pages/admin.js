@@ -384,48 +384,70 @@ export default function AdminDashboard({ adminId, username }) {
 )}
 
             {/* TAB 4: MAIL CONTROL */}
-            {activeTab === 'mail_control' && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-blue-500">Mail Master Control</h1>
-                        <p className="text-gray-500 text-sm italic">Oversee global automation triggers.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 flex flex-col items-center text-center">
-                            <h3 className="text-sm font-black uppercase text-gray-500 mb-8 tracking-widest">Automation Engine</h3>
-                            <button 
-                                onClick={() => saveGlobalSettings(!mailActive, mailTarget)}
-                                className={`w-32 h-32 rounded-full transition-all flex items-center justify-center border-8 ${mailActive ? 'bg-green-600/10 border-green-600 text-green-500 shadow-[0_0_30px_rgba(22,163,74,0.3)]' : 'bg-red-600/10 border-red-600 text-red-500 shadow-[0_0_30px_rgba(220,38,38,0.3)]'}`}
-                            >
-                                {mailActive ? <BellRing size={48}/> : <BellOff size={48}/>}
-                            </button>
-                            <p className="mt-8 text-xl font-black uppercase">{mailActive ? 'System Live' : 'System Paused'}</p>
-                            <p className="text-xs text-gray-600 mt-2">Reminders will {mailActive ? 'continue' : 'cease'} for all recipients.</p>
+{activeTab === 'mail_control' && (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8">System Mail Control</h1>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Split Toggles */}
+            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* MORNING CONTROL */}
+                <div className={`p-8 rounded-[3rem] border transition-all ${mailMorningActive ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-black/20 border-white/5'}`}>
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="p-4 bg-yellow-500 rounded-2xl text-black shadow-lg shadow-yellow-500/20">
+                            <Sun size={24}/>
                         </div>
-
-                        <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5">
-                            <h3 className="text-sm font-black uppercase text-gray-500 mb-8 tracking-widest text-center">Target Audience</h3>
-                            <div className="space-y-4">
-                                {[
-                                    {id: 'users', label: 'Active Soldiers Only'},
-                                    {id: 'admins', label: 'Commanders Only'},
-                                    {id: 'both', label: 'Entire Fleet'}
-                                ].map(t => (
-                                    <button 
-                                        key={t.id}
-                                        onClick={() => saveGlobalSettings(mailActive, t.id)}
-                                        className={`w-full p-6 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all ${
-                                            mailTarget === t.id ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20' : 'bg-black/40 border-white/5 text-gray-500'
-                                        }`}
-                                    >
-                                        {t.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        <button 
+                            onClick={() => saveGlobalSettings(!mailMorningActive, mailEveningActive, mailTarget)}
+                            className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailMorningActive ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'}`}
+                        >
+                            {mailMorningActive ? 'Active' : 'Paused'}
+                        </button>
                     </div>
+                    <h3 className="text-xl font-black uppercase italic">Morning Briefing</h3>
+                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends daily story, current XP balance, and morning motivation to your squad.</p>
                 </div>
-            )}
+
+                {/* EVENING CONTROL */}
+                <div className={`p-8 rounded-[3rem] border transition-all ${mailEveningActive ? 'bg-blue-500/10 border-blue-500/30' : 'bg-black/20 border-white/5'}`}>
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="p-4 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
+                            <Moon size={24}/>
+                        </div>
+                        <button 
+                            onClick={() => saveGlobalSettings(mailMorningActive, !mailEveningActive, mailTarget)}
+                            className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailEveningActive ? 'bg-blue-500 text-white' : 'bg-red-600 text-white'}`}
+                        >
+                            {mailEveningActive ? 'Active' : 'Paused'}
+                        </button>
+                    </div>
+                    <h3 className="text-xl font-black uppercase italic">Evening Check-in</h3>
+                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends EOD reminders to ensure soldiers log their progress and maintain streaks.</p>
+                </div>
+
+            </div>
+
+            {/* Audience Targeting (Right Side) */}
+            <div className="lg:col-span-4 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5">
+                <h3 className="text-[10px] font-black uppercase text-gray-500 mb-8 tracking-[0.3em] text-center">Global Audience</h3>
+                <div className="space-y-3">
+                    {['users', 'admins', 'both'].map(t => (
+                        <button 
+                            key={t}
+                            onClick={() => saveGlobalSettings(mailMorningActive, mailEveningActive, t)}
+                            className={`w-full p-5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                                mailTarget === t ? 'bg-white text-black border-white shadow-lg' : 'bg-black/40 border-white/5 text-gray-500 hover:border-white/20'
+                            }`}
+                        >
+                            {t === 'both' ? 'Entire Fleet' : t === 'users' ? 'Soldiers Only' : 'Commanders Only'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+)}
 
         </main>
       </div>

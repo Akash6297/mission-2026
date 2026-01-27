@@ -8,11 +8,10 @@ export default async function handler(req, res) {
 
   try {
     // 1. FETCH GLOBAL SETTINGS
-    const globalConfig = await GlobalSetting.findOne({ configId: "master_config" }) || { isMailActive: true, mailTarget: "both" };
+    const globalConfig = await GlobalSetting.findOne({ configId: "master_config" }) || { isMorningActive: true, isEveningActive: true, mailTarget: "both" };
 
-    // 2. CHECK MASTER SWITCH
-    if (!globalConfig.isMailActive) {
-      return res.status(200).json({ message: "Evening mailing is currently disabled by Master Switch." });
+    if (!globalConfig.isEveningActive) {
+        return res.status(200).json({ message: "Evening reminders are currently disabled." });
     }
 
     // 3. DEFINE TARGET AUDIENCE
