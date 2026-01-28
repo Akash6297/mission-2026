@@ -37,14 +37,20 @@ export default function AdminDashboard({ adminId, username }) {
   const [primaryColor, setPrimaryColor] = useState("#eab308"); 
   const [status, setStatus] = useState("");
 
-  // FIXED: DEFINED MAIL CONTROL STATES
+  // MAIL CONTROL STATES
   const [mailMorningActive, setMailMorningActive] = useState(true);
   const [mailEveningActive, setMailEveningActive] = useState(true);
   const [mailTarget, setMailTarget] = useState('both');
 
+  // MOTIVATION STATES
   const [calendar, setCalendar] = useState([]);
   const [calForm, setCalForm] = useState({ day: 1, subject: '', story: '' });
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  // PERSONAL DISPATCH STATES (NEW FEATURE)
+  const [personalMailUser, setPersonalMailUser] = useState(null); 
+  const [personalMsg, setPersonalMsg] = useState("");
+  const [personalSubject, setPersonalSubject] = useState("DIRECT DISPATCH");
 
   useEffect(() => { 
     fetchUsers(); 
@@ -56,14 +62,13 @@ export default function AdminDashboard({ adminId, username }) {
     try {
         const res = await fetch('/api/admin/global-settings');
         const data = await res.json();
-        // Sync states with DB data
         setMailMorningActive(data.isMorningActive ?? true);
         setMailEveningActive(data.isEveningActive ?? true);
         setMailTarget(data.mailTarget || 'both');
     } catch (err) { console.error("Error fetching global settings"); }
   };
 
-const saveGlobalSettings = async (morning, evening, target) => {
+  const saveGlobalSettings = async (morning, evening, target) => {
     try {
         const response = await fetch('/api/admin/global-settings', {
             method: 'POST',
@@ -77,18 +82,13 @@ const saveGlobalSettings = async (morning, evening, target) => {
 
         if (response.ok) {
             const updatedData = await response.json();
-            // Update local state with the actual data returned from DB
             setMailMorningActive(updatedData.isMorningActive);
             setMailEveningActive(updatedData.isEveningActive);
             setMailTarget(updatedData.mailTarget);
-            console.log("Settings synced with MongoDB");
         } else {
             alert("Server rejected the update");
         }
-    } catch (err) { 
-        console.error(err);
-        alert("Failed to connect to API"); 
-    }
+    } catch (err) { alert("Failed to connect to API"); }
   };
 
   const fetchUsers = async () => {
@@ -138,6 +138,29 @@ const saveGlobalSettings = async (morning, evening, target) => {
     setTimeout(() => setStatus(""), 3000);
   };
 
+  const sendPersonalMail = async () => {
+    if(!personalMsg) return alert("Write a message first!");
+    setStatus("Dispatching...");
+    const res = await fetch('/api/admin/personal-mail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            targetEmail: personalMailUser.email, 
+            targetUsername: personalMailUser.username,
+            subject: personalSubject,
+            message: personalMsg
+        })
+    });
+    if(res.ok) {
+        alert(`Dispatch successfully sent to ${personalMailUser.username}`);
+        setPersonalMailUser(null);
+        setPersonalMsg("");
+    } else {
+        alert("Dispatch Failed.");
+    }
+    setStatus("");
+  };
+
   const saveToCalendar = async () => {
     const res = await fetch('/api/admin/motivation', {
         method: 'POST',
@@ -167,7 +190,7 @@ const saveGlobalSettings = async (morning, evening, target) => {
                 </div>
             </div>
 
-            <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-4 lg:pb-0">
+            <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-4 lg:pb-0 font-mono">
                 {[
                     { id: 'users', label: 'User Registry', icon: <Users size={18}/> },
                     { id: 'email', label: 'Broadcast HQ', icon: <Mail size={18}/> },
@@ -177,7 +200,7 @@ const saveGlobalSettings = async (morning, evening, target) => {
                     <button 
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all whitespace-nowrap ${
+                        className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${
                             activeTab === tab.id ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'text-gray-500 hover:bg-white/5 hover:text-white'
                         }`}
                     >
@@ -188,288 +211,232 @@ const saveGlobalSettings = async (morning, evening, target) => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 md:p-10 lg:p-16 max-w-7xl">
+        <main className="flex-1 p-4 md:p-10 lg:p-16 max-w-7xl overflow-y-auto">
             
-            {/* TAB 1: USERS */}
+            {/* VIEW 1: USERS */}
             {activeTab === 'users' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="mb-10">
-                        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">User Registry</h1>
-                        <p className="text-gray-500 text-sm italic">Control access and personnel roles.</p>
-                    </div>
+                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-yellow-500">User Registry</h1>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                         {users.map(u => (
                             <div key={u._id} className={`p-6 rounded-[2.5rem] border ${u.role === 'admin' ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0f0f12] border-white/5'}`}>
                                 <div className="flex justify-between items-start mb-6">
-                                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl font-black text-gray-500">
-                                        {u.username.charAt(0).toUpperCase()}
+                                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl font-black text-gray-500 uppercase">
+                                        {u.username.charAt(0)}
                                     </div>
                                     {u._id !== adminId && (
-                                        <button onClick={() => deleteUser(u._id)} className="p-2 text-gray-600 hover:text-red-500"><Trash2 size={18}/></button>
+                                        <button onClick={() => deleteUser(u._id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                                     )}
                                 </div>
                                 <h3 className="font-black text-lg uppercase tracking-tight truncate text-white">{u.username}</h3>
                                 <p className="text-xs text-gray-500 mb-6 truncate">{u.email}</p>
-                                <button onClick={() => toggleRole(u._id, u.role)} className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400'}`}>
-                                    {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>} {u.role} Access
-                                </button>
+                                
+                                <div className="flex gap-2">
+                                    <button onClick={() => toggleRole(u._id, u.role)} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400'}`}>
+                                        {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>} {u.role} Access
+                                    </button>
+                                    <button 
+                                        onClick={() => setPersonalMailUser(u)}
+                                        className="p-2 bg-blue-600/10 text-blue-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-600/20"
+                                        title="Send Personal Dispatch"
+                                    >
+                                        <Mail size={16}/>
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* TAB 2: BROADCAST */}
-            {/* TAB 2: BROADCAST */}
-{activeTab === 'email' && (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="mb-10">
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">Broadcast HQ</h1>
-            <p className="text-gray-500 text-sm italic">Manual override and mission alerts.</p>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-            <div className="xl:col-span-5 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
-                
-                {/* 1. SUBJECT INPUT */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Subject</label>
-                  <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" placeholder="Subject" />
-                </div>
-
-                {/* 2. COLOR PICKER PLACEMENT (HERE) */}
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Branding Color</label>
-                  <div className="flex gap-3 flex-wrap">
-                    {['#eab308', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6', '#f472b6'].map(c => (
-                      <button 
-                        key={c} 
-                        type="button"
-                        onClick={() => setPrimaryColor(c)} 
-                        className={`w-10 h-10 rounded-full border-4 transition-all ${primaryColor === c ? 'border-white scale-110 shadow-lg shadow-white/20' : 'border-transparent opacity-50'}`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                    <input 
-                      type="color" 
-                      value={primaryColor} 
-                      onChange={(e) => setPrimaryColor(e.target.value)} 
-                      className="w-10 h-10 bg-transparent border-none cursor-pointer rounded-full overflow-hidden" 
-                    />
-                  </div>
-                </div>
-
-                {/* 3. MESSAGE TEXTAREA */}
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Message content</label>
-                  <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-64 outline-none focus:border-yellow-500 text-sm" placeholder="Content..." />
-                </div>
-
-                <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] uppercase tracking-widest hover:bg-yellow-400">
-                    {status || "Deploy Broadcast"}
-                </button>
-            </div>
-
-            {/* PREVIEW WINDOW (SAME AS BEFORE) */}
-            <div className="xl:col-span-7">
-                <div className="bg-[#e5e7eb] rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl h-fit sticky top-10 border border-white/10">
-                    <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-400" /><div className="w-3 h-3 rounded-full bg-yellow-400" /><div className="w-3 h-3 rounded-full bg-green-400" />
-                    </div>
-                    <div className="p-8 bg-white max-h-[600px] overflow-auto">
-                        {/* PREVIEW BOX UPDATES DYNAMICALLY WITH PRIMARYCOLOR */}
-                        <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
-                            <h1 style={{margin: 0, fontSize: '20px', textTransform: 'uppercase'}}>{subject}</h1>
-                        </div>
-                        <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
-                            "{message.replace(/{username}/g, username)}"
-                        </div>
-                        <div style={{textAlign: 'center'}}>
-                            <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: primaryColor, color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px'}}>MISSION CONTROL</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-)}
-
-{/* TAB 3: MOTIVATION PIPELINE */}
-{activeTab === 'calendar' && (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="mb-10">
-            <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-green-500">Motivation Pipeline</h1>
-            <p className="text-gray-500 text-sm italic">Automate your leadership by scheduling weekly inspiring stories.</p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Form Side */}
-            <div className="lg:col-span-4 space-y-6">
-                <div className="bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6 shadow-2xl">
-                    <h2 className="text-xs font-black uppercase text-green-500 tracking-[0.2em] mb-4">Composer</h2>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">Execution Day</label>
-                            <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})} 
-                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl text-yellow-500 font-bold outline-none focus:border-green-500 transition-all mt-1">
-                                {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">Story Subject</label>
-                            <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} 
-                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-green-500 text-sm mt-1" placeholder="e.g. The Power of Consistency" />
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-black text-gray-600 uppercase ml-2">The Narrative (Use {'{username}'})</label>
-                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} 
-                                className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none focus:border-green-500 text-sm leading-relaxed mt-1" 
-                                placeholder="Once upon a time, {username} decided to never give up..." />
-                        </div>
-
-                        <button onClick={saveToCalendar} className="w-full bg-green-600 text-white font-black py-5 rounded-[2rem] uppercase tracking-widest shadow-lg shadow-green-900/20 hover:bg-green-500 transition-all active:scale-95">
-                            Arm {days[calForm.day]} Pipeline
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Preview Side */}
-            <div className="lg:col-span-4">
-                <div className="sticky top-10 space-y-4">
-                    <h2 className="text-[10px] font-black uppercase text-gray-500 tracking-[0.3em] ml-4 flex items-center gap-2">
-                        <Eye size={14}/> Inbox Preview
-                    </h2>
-                    {/* Simulated Email Template */}
-                    <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-200 min-h-[500px]">
-                        <div style={{backgroundColor: '#10b981', padding: '40px 20px', textAlign: 'center', color: '#fff'}}>
-                            <h1 style={{margin: 0, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '2px', fontStyle: 'italic'}}>{calForm.subject || "Subject Placeholder"}</h1>
-                        </div>
-                        <div style={{padding: '30px', color: '#334155', fontFamily: 'serif', lineHeight: '1.8', fontSize: '15px'}}>
-                            <p style={{marginBottom: '20px'}}>Greetings, <strong>Soldier {username}</strong>.</p>
-                            <div style={{borderLeft: '4px solid #10b981', paddingLeft: '15px', fontStyle: 'italic'}}>
-                                {calForm.story ? calForm.story.replace(/{username}/g, username) : "Your inspiring story will appear here as you type..."}
+            {/* VIEW 2: BROADCAST HQ */}
+            {activeTab === 'email' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-yellow-500">Broadcast HQ</h1>
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+                        <div className="xl:col-span-5 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6">
+                            <div>
+                                <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Subject</label>
+                                <input value={subject} onChange={e => setSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-yellow-500 text-sm" placeholder="Subject" />
                             </div>
-                            <div style={{textAlign: 'center', marginTop: '40px'}}>
-                                <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: '#000', color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '11px', textTransform: 'uppercase'}}>LOG TODAY'S MISSION</div>
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Branding Color</label>
+                                <div className="flex gap-3 flex-wrap">
+                                    {['#eab308', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6', '#f472b6'].map(c => (
+                                    <button key={c} type="button" onClick={() => setPrimaryColor(c)} 
+                                        className={`w-10 h-10 rounded-full border-4 transition-all ${primaryColor === c ? 'border-white scale-110 shadow-lg shadow-white/20' : 'border-transparent opacity-50'}`}
+                                        style={{ backgroundColor: c }} />
+                                    ))}
+                                    <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-10 h-10 bg-transparent border-none cursor-pointer rounded-full overflow-hidden" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">Message content</label>
+                                <textarea value={message} onChange={e => setMessage(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-64 outline-none focus:border-yellow-500 text-sm custom-scrollbar" placeholder="Content..." />
+                            </div>
+                            <button onClick={sendBroadcast} className="w-full bg-yellow-500 text-black font-black py-5 rounded-[2rem] uppercase tracking-widest shadow-xl hover:bg-yellow-400">
+                                {status || "Deploy Broadcast"}
+                            </button>
+                        </div>
+                        <div className="xl:col-span-7 bg-[#e5e7eb] rounded-[3rem] p-1 text-black shadow-2xl overflow-hidden h-fit sticky top-10 border border-white/10">
+                            <div className="bg-white border-b border-gray-300 p-4 flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-400" /><div className="w-3 h-3 rounded-full bg-yellow-400" /><div className="w-3 h-3 rounded-full bg-green-400" />
+                            </div>
+                            <div className="p-8 bg-white max-h-[600px] overflow-auto custom-scrollbar">
+                                <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
+                                    <h1 style={{margin: 0, fontSize: '20px', textTransform: 'uppercase'}}>{subject}</h1>
+                                </div>
+                                <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
+                                    "{message.replace(/{username}/g, username || "Akash")}"
+                                </div>
+                                <div style={{textAlign: 'center'}}>
+                                    <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: primaryColor, color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px'}}>MISSION CONTROL</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* List Side */}
-            <div className="lg:col-span-4">
-                <h2 className="text-[10px] font-black uppercase text-gray-500 tracking-[0.3em] mb-4 ml-4">Current Schedule</h2>
-                <div className="space-y-3 pr-2 custom-scrollbar overflow-y-auto max-h-[700px]">
-                    {days.map((d, i) => {
-                        const s = calendar.find(c => c.dayOfWeek === i);
-                        return (
-                            <div key={i} className={`p-5 rounded-[2rem] border transition-all flex items-center justify-between group ${s ? 'bg-green-500/5 border-green-500/20' : 'bg-black/20 border-white/5 opacity-40'}`}>
-                                <div className="flex items-center gap-4 truncate">
-                                    <div className={`w-2 h-2 rounded-full shrink-0 ${s ? 'bg-green-500 animate-pulse' : 'bg-gray-700'}`} />
-                                    <div className="truncate">
-                                        <p className="text-[10px] font-black text-gray-600 uppercase">{d}</p>
-                                        <p className="text-sm font-bold truncate text-white">{s ? s.subject : 'System Idle'}</p>
+            {/* VIEW 3: MOTIVATION CALENDAR */}
+            {activeTab === 'calendar' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-green-500 text-center lg:text-left">Motivation Pipeline</h1>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-4 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6 h-fit shadow-2xl">
+                            <div className="grid grid-cols-1 gap-4">
+                                <select value={calForm.day} onChange={e => setCalForm({...calForm, day: Number(e.target.value)})} className="bg-black/40 border border-white/10 p-4 rounded-2xl text-yellow-500 font-bold outline-none uppercase text-xs">
+                                    {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                                </select>
+                                <input value={calForm.subject} onChange={e => setCalForm({...calForm, subject: e.target.value})} className="bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-green-500 text-sm transition-all" placeholder="Subject" />
+                            </div>
+                            <textarea value={calForm.story} onChange={e => setCalForm({...calForm, story: e.target.value})} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none focus:border-green-500 text-sm leading-relaxed" placeholder="The Story... use {username}" />
+                            <button onClick={saveToCalendar} className="w-full bg-green-600 font-black py-5 rounded-[2rem] uppercase tracking-widest text-xs shadow-lg hover:bg-green-500 transition-all">Arm Pipeline</button>
+                        </div>
+                        
+                        <div className="lg:col-span-4 sticky top-10">
+                            <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-200 min-h-[500px]">
+                                <div style={{backgroundColor: '#10b981', padding: '40px 20px', textAlign: 'center', color: '#fff'}}>
+                                    <h1 style={{margin: 0, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '2px', fontStyle: 'italic'}}>{calForm.subject || "Story Subject"}</h1>
+                                </div>
+                                <div style={{padding: '30px', color: '#334155', fontFamily: 'serif', lineHeight: '1.8', fontSize: '15px'}}>
+                                    <p style={{marginBottom: '20px'}}>Greetings, <strong>Soldier {username}</strong>.</p>
+                                    <div style={{borderLeft: '4px solid #10b981', paddingLeft: '15px', fontStyle: 'italic'}}>
+                                        {calForm.story ? calForm.story.replace(/{username}/g, username) : "Your narrative preview..."}
+                                    </div>
+                                    <div style={{textAlign: 'center', marginTop: '40px'}}>
+                                        <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: '#000', color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '11px'}}>EXECUTE MISSION</div>
                                     </div>
                                 </div>
-                                {s && (
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => setCalForm({day: i, subject: s.subject, story: s.story})} className="p-2 bg-white/5 rounded-full text-yellow-500 hover:bg-white/10"><Type size={14}/></button>
-                                        <button onClick={async () => {
-                                            if(confirm(`Clear ${d}?`)) {
-                                                await fetch('/api/admin/motivation', {
-                                                    method: 'DELETE',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ dayOfWeek: i })
-                                                });
-                                                fetchCalendar();
-                                            }
-                                        }} className="p-2 bg-white/5 rounded-full text-red-500 hover:bg-white/10"><Trash2 size={14}/></button>
-                                    </div>
-                                )}
                             </div>
-                        )
-                    })}
-                </div>
-            </div>
-        </div>
-    </div>
-)}
-
-            {/* TAB 4: MAIL CONTROL */}
-{activeTab === 'mail_control' && (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8">System Mail Control</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Split Toggles */}
-            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* MORNING CONTROL */}
-                <div className={`p-8 rounded-[3rem] border transition-all ${mailMorningActive ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-black/20 border-white/5'}`}>
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="p-4 bg-yellow-500 rounded-2xl text-black shadow-lg shadow-yellow-500/20">
-                            <Sun size={24}/>
                         </div>
-                        <button 
-                            onClick={() => saveGlobalSettings(!mailMorningActive, mailEveningActive, mailTarget)}
-                            className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailMorningActive ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'}`}
-                        >
-                            {mailMorningActive ? 'Active' : 'Paused'}
-                        </button>
-                    </div>
-                    <h3 className="text-xl font-black uppercase italic">Morning Briefing</h3>
-                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends daily story, current XP balance, and morning motivation to your squad.</p>
-                </div>
 
-                {/* EVENING CONTROL */}
-                <div className={`p-8 rounded-[3rem] border transition-all ${mailEveningActive ? 'bg-blue-500/10 border-blue-500/30' : 'bg-black/20 border-white/5'}`}>
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="p-4 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-                            <Moon size={24}/>
+                        <div className="lg:col-span-4 space-y-3 pr-2 custom-scrollbar overflow-y-auto max-h-[700px]">
+                            {days.map((d, i) => {
+                                const s = calendar.find(c => c.dayOfWeek === i);
+                                return (
+                                    <div key={i} className={`p-5 rounded-[2rem] border transition-all flex items-center justify-between group ${s ? 'bg-green-500/5 border-green-500/30' : 'bg-black/20 border-white/5 opacity-40'}`}>
+                                        <div className="flex items-center gap-4 truncate">
+                                            <div className={`w-2 h-2 rounded-full shrink-0 ${s ? 'bg-green-500 animate-pulse' : 'bg-gray-700'}`} />
+                                            <div className="truncate">
+                                                <p className="text-[10px] font-black text-gray-600 uppercase">{d}</p>
+                                                <p className="text-sm font-bold truncate text-white">{s ? s.subject : 'System Idle'}</p>
+                                            </div>
+                                        </div>
+                                        {s && (
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setCalForm({day: i, subject: s.subject, story: s.story})} className="p-2 bg-white/5 rounded-full text-yellow-500 hover:bg-white/10 transition-all"><Type size={14}/></button>
+                                                <button onClick={async () => {
+                                                    if(confirm(`Clear ${d}?`)) {
+                                                        await fetch('/api/admin/motivation', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dayOfWeek: i }) });
+                                                        fetchCalendar();
+                                                    }
+                                                }} className="p-2 bg-white/5 rounded-full text-red-500 hover:bg-white/10 transition-all"><Trash2 size={14}/></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
                         </div>
-                        <button 
-                            onClick={() => saveGlobalSettings(mailMorningActive, !mailEveningActive, mailTarget)}
-                            className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailEveningActive ? 'bg-blue-500 text-white' : 'bg-red-600 text-white'}`}
-                        >
-                            {mailEveningActive ? 'Active' : 'Paused'}
-                        </button>
                     </div>
-                    <h3 className="text-xl font-black uppercase italic">Evening Check-in</h3>
-                    <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends EOD reminders to ensure soldiers log their progress and maintain streaks.</p>
                 </div>
+            )}
 
-            </div>
-
-            {/* Audience Targeting (Right Side) */}
-            <div className="lg:col-span-4 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5">
-                <h3 className="text-[10px] font-black uppercase text-gray-500 mb-8 tracking-[0.3em] text-center">Global Audience</h3>
-                <div className="space-y-3">
-                    {['users', 'admins', 'both'].map(t => (
-                        <button 
-                            key={t}
-                            onClick={() => saveGlobalSettings(mailMorningActive, mailEveningActive, t)}
-                            className={`w-full p-5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-                                mailTarget === t ? 'bg-white text-black border-white shadow-lg' : 'bg-black/40 border-white/5 text-gray-500 hover:border-white/20'
-                            }`}
-                        >
-                            {t === 'both' ? 'Entire Fleet' : t === 'users' ? 'Soldiers Only' : 'Commanders Only'}
-                        </button>
-                    ))}
+            {/* VIEW 4: MAIL CONTROL */}
+            {activeTab === 'mail_control' && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-blue-500">Mail Control Center</h1>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className={`p-8 rounded-[3rem] border transition-all ${mailMorningActive ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-black/20 border-white/5'}`}>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="p-4 bg-yellow-500 rounded-2xl text-black shadow-lg shadow-yellow-500/20"><Sun size={24}/></div>
+                                    <button onClick={() => saveGlobalSettings(!mailMorningActive, mailEveningActive, mailTarget)} className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailMorningActive ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' : 'bg-red-600 text-white'}`}>
+                                        {mailMorningActive ? 'Active' : 'Paused'}
+                                    </button>
+                                </div>
+                                <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Morning Briefing</h3>
+                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends daily story, current XP balance, and morning motivation to your squad.</p>
+                            </div>
+                            <div className={`p-8 rounded-[3rem] border transition-all ${mailEveningActive ? 'bg-blue-500/10 border-blue-500/30' : 'bg-black/20 border-white/5'}`}>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="p-4 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-500/20"><Moon size={24}/></div>
+                                    <button onClick={() => saveGlobalSettings(mailMorningActive, !mailEveningActive, mailTarget)} className={`px-6 py-2 rounded-full font-black text-[10px] uppercase tracking-widest transition-all ${mailEveningActive ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-red-600 text-white'}`}>
+                                        {mailEveningActive ? 'Active' : 'Paused'}
+                                    </button>
+                                </div>
+                                <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Evening Check-in</h3>
+                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">Sends EOD reminders to ensure soldiers log their progress and maintain streaks.</p>
+                            </div>
+                        </div>
+                        <div className="lg:col-span-4 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 shadow-2xl">
+                            <h3 className="text-[10px] font-black uppercase text-gray-500 mb-8 tracking-[0.3em] text-center">Global Audience</h3>
+                            <div className="space-y-3">
+                                {['users', 'admins', 'both'].map(t => (
+                                    <button key={t} onClick={() => saveGlobalSettings(mailMorningActive, mailEveningActive, t)} className={`w-full p-5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${mailTarget === t ? 'bg-white text-black border-white shadow-xl' : 'bg-black/40 border-white/5 text-gray-500 hover:border-white/20'}`}>
+                                        {t === 'both' ? 'Entire Fleet' : t === 'users' ? 'Soldiers Only' : 'Commanders Only'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-)}
+            )}
 
         </main>
       </div>
 
+      {/* NEW: PERSONAL DISPATCH MODAL */}
+      {personalMailUser && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+            <div className="bg-[#0f0f12] border border-blue-500/30 p-6 sm:p-10 rounded-[3rem] max-w-lg w-full relative shadow-[0_0_50px_rgba(59,130,246,0.2)] animate-in zoom-in-95 duration-200">
+                <button onClick={() => setPersonalMailUser(null)} className="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"><X size={24}/></button>
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-3 bg-blue-600 rounded-xl"><Mail size={24}/></div>
+                    <h2 className="text-2xl font-black italic uppercase text-blue-500 tracking-tighter">Direct Dispatch</h2>
+                </div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-8 ml-1">Target Soldier: <span className="text-white font-bold">{personalMailUser.username}</span></p>
+                
+                <div className="space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-gray-600 uppercase ml-2 tracking-widest">Mission Topic</label>
+                        <input value={personalSubject} onChange={e => setPersonalSubject(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-blue-500 text-sm transition-all shadow-inner" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-gray-600 uppercase ml-2 tracking-widest">Encrypted Content</label>
+                        <textarea value={personalMsg} onChange={e => setPersonalMsg(e.target.value)} className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl h-48 outline-none focus:border-blue-500 text-sm leading-relaxed custom-scrollbar shadow-inner" placeholder="Orders for the soldier... Use {username}"/>
+                    </div>
+                    <button onClick={sendPersonalMail} className="w-full bg-blue-600 text-white font-black py-5 rounded-[2.5rem] text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-blue-500 active:scale-95 transition-all mt-4">
+                        {status ? status : "Execute Dispatch"}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
       `}</style>
