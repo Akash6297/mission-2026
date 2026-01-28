@@ -3,12 +3,14 @@ import Head from 'next/head';
 import { 
   ShieldAlert, Send, Users, Trash2, Eye, Type, 
   ShieldCheck, UserCog, X, Calendar, CheckCircle, 
-  Mail, BookOpen, Settings2, BellRing, BellOff, Sun, Moon 
+  Mail, BookOpen, Settings2, BellRing, BellOff, Sun, Moon,
+  Search, Crown, ArrowLeft // Added new icons
 } from 'lucide-react';
 import { parse } from 'cookie';
 import jwt from 'jsonwebtoken';
 import dbConnect from '../lib/mongodb';
 import User from '../models/User';
+import { useRouter } from 'next/router';
 
 export async function getServerSideProps(context) {
     const { req } = context;
@@ -30,12 +32,16 @@ export async function getServerSideProps(context) {
 }
 
 export default function AdminDashboard({ adminId, username }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('users'); 
   const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState(""); // SEARCH STATE
   const [subject, setSubject] = useState("NEW MISSION UPDATE");
   const [message, setMessage] = useState("Hello {username}, we have a new announcement...");
   const [primaryColor, setPrimaryColor] = useState("#eab308"); 
   const [status, setStatus] = useState("");
+
+  const SUPER_ADMIN_EMAIL = "akashmandal6297@gmail.com"; // THE FOUNDER
 
   // MAIL CONTROL STATES
   const [mailMorningActive, setMailMorningActive] = useState(true);
@@ -47,10 +53,16 @@ export default function AdminDashboard({ adminId, username }) {
   const [calForm, setCalForm] = useState({ day: 1, subject: '', story: '' });
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-  // PERSONAL DISPATCH STATES (NEW FEATURE)
+  // PERSONAL DISPATCH STATES
   const [personalMailUser, setPersonalMailUser] = useState(null); 
   const [personalMsg, setPersonalMsg] = useState("");
   const [personalSubject, setPersonalSubject] = useState("DIRECT DISPATCH");
+
+  // FILTER USERS FOR SEARCH
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    u.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => { 
     fetchUsers(); 
@@ -73,20 +85,13 @@ export default function AdminDashboard({ adminId, username }) {
         const response = await fetch('/api/admin/global-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                isMorningActive: morning, 
-                isEveningActive: evening, 
-                mailTarget: target 
-            })
+            body: JSON.stringify({ isMorningActive: morning, isEveningActive: evening, mailTarget: target })
         });
-
         if (response.ok) {
             const updatedData = await response.json();
             setMailMorningActive(updatedData.isMorningActive);
             setMailEveningActive(updatedData.isEveningActive);
             setMailTarget(updatedData.mailTarget);
-        } else {
-            alert("Server rejected the update");
         }
     } catch (err) { alert("Failed to connect to API"); }
   };
@@ -103,7 +108,8 @@ export default function AdminDashboard({ adminId, username }) {
     if (Array.isArray(data)) setCalendar(data);
   };
 
-  const toggleRole = async (targetId, currentRole) => {
+  const toggleRole = async (targetId, currentRole, email) => {
+    if (email === SUPER_ADMIN_EMAIL) return alert("Operation Denied: The Founder's access level is absolute.");
     if (targetId === adminId) return alert("Operation denied: Self-demotion blocked.");
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
     const res = await fetch('/api/admin/users', {
@@ -114,7 +120,8 @@ export default function AdminDashboard({ adminId, username }) {
     if (res.ok) fetchUsers();
   };
 
-  const deleteUser = async (id) => {
+  const deleteUser = async (id, email) => {
+    if (email === SUPER_ADMIN_EMAIL) return alert("Operation Denied: The Founder cannot be removed.");
     if (id === adminId) return alert("Operation denied: Self-destruction blocked.");
     if (!confirm("Confirm permanent deletion of soldier?")) return;
     await fetch('/api/admin/users', {
@@ -155,8 +162,6 @@ export default function AdminDashboard({ adminId, username }) {
         alert(`Dispatch successfully sent to ${personalMailUser.username}`);
         setPersonalMailUser(null);
         setPersonalMsg("");
-    } else {
-        alert("Dispatch Failed.");
     }
     setStatus("");
   };
@@ -182,13 +187,21 @@ export default function AdminDashboard({ adminId, username }) {
         
         {/* Sidebar Navigation */}
         <aside className="w-full lg:w-72 bg-[#0a0a0c] border-b lg:border-b-0 lg:border-r border-white/5 p-6 space-y-8 shrink-0">
-            <div className="flex items-center gap-3 mb-10">
+            <div className="flex items-center gap-3 mb-6">
                 <div className="p-3 bg-red-600 rounded-xl shadow-lg shadow-red-600/20"><ShieldAlert size={24}/></div>
                 <div>
                     <h2 className="text-xl font-black italic tracking-tighter uppercase">HQ Control</h2>
                     <p className="text-[8px] text-red-500 font-bold tracking-[0.3em]">SECURE ACCESS</p>
                 </div>
             </div>
+
+            {/* RETURN TO SITE LINK */}
+            <button 
+                onClick={() => router.push('/')}
+                className="w-full flex items-center gap-3 px-5 py-3 rounded-xl border border-white/5 text-gray-500 hover:text-yellow-500 hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-widest"
+            >
+                <ArrowLeft size={16}/> Back to Main Site
+            </button>
 
             <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible no-scrollbar pb-4 lg:pb-0 font-mono">
                 {[
@@ -213,43 +226,90 @@ export default function AdminDashboard({ adminId, username }) {
         {/* Main Content Area */}
         <main className="flex-1 p-4 md:p-10 lg:p-16 max-w-7xl overflow-y-auto">
             
-            {/* VIEW 1: USERS */}
+            {/* VIEW 1: USERS (WITH SEARCH & FOUNDER LOGIC) */}
             {activeTab === 'users' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-yellow-500">User Registry</h1>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {users.map(u => (
-                            <div key={u._id} className={`p-6 rounded-[2.5rem] border ${u.role === 'admin' ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-[#0f0f12] border-white/5'}`}>
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl font-black text-gray-500 uppercase">
-                                        {u.username.charAt(0)}
-                                    </div>
-                                    {u._id !== adminId && (
-                                        <button onClick={() => deleteUser(u._id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                        <div>
+                            <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-2 text-yellow-500">User Registry</h1>
+                            <p className="text-gray-500 text-sm italic">Manage personnel and authorization levels.</p>
+                        </div>
+
+                        {/* SEARCH INPUT */}
+                        <div className="relative w-full md:w-80 group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-yellow-500 transition-colors" size={18}/>
+                            <input 
+                                type="text" 
+                                placeholder="Search Name or Email..." 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-[#0f0f12] border border-white/10 p-4 pl-12 rounded-2xl outline-none focus:border-yellow-500 transition-all text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredUsers.map(u => {
+                            const isFounder = u.email === SUPER_ADMIN_EMAIL;
+                            return (
+                                <div key={u._id} className={`p-6 rounded-[2.5rem] border transition-all relative overflow-hidden ${
+                                    isFounder 
+                                    ? 'bg-yellow-500/10 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.1)]' 
+                                    : u.role === 'admin' ? 'bg-yellow-500/5 border-white/10' : 'bg-[#0f0f12] border-white/5'
+                                } group hover:scale-[1.02]`}>
+                                    
+                                    {isFounder && (
+                                        <div className="absolute top-4 right-4 text-yellow-500 drop-shadow-lg">
+                                            <Crown size={22} fill="currentColor" className="animate-pulse" />
+                                        </div>
                                     )}
+
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black uppercase ${isFounder ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/40' : 'bg-white/5 text-gray-500'}`}>
+                                            {u.username.charAt(0)}
+                                        </div>
+                                        
+                                        {!isFounder && u._id !== adminId && (
+                                            <button onClick={() => deleteUser(u._id, u.email)} className="p-2 text-gray-600 hover:text-red-500 transition-colors">
+                                                <Trash2 size={18}/>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <h3 className="font-black text-lg uppercase tracking-tight truncate text-white">
+                                        {u.username}
+                                        {isFounder && <span className="block text-[8px] text-yellow-500 font-bold tracking-[0.4em] mt-1 uppercase">System Founder</span>}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 mb-6 truncate italic">{u.email}</p>
+                                    
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => toggleRole(u._id, u.role, u.email)}
+                                            disabled={isFounder}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${
+                                                isFounder ? 'bg-yellow-500 text-black cursor-default' : 
+                                                u.role === 'admin' ? 'bg-white/10 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>}
+                                            {isFounder ? 'Full Access' : `${u.role} Control`}
+                                        </button>
+                                        <button 
+                                            onClick={() => setPersonalMailUser(u)}
+                                            className="p-3 bg-blue-600/10 text-blue-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-600/20"
+                                            title="Personal Dispatch"
+                                        >
+                                            <Mail size={18}/>
+                                        </button>
+                                    </div>
                                 </div>
-                                <h3 className="font-black text-lg uppercase tracking-tight truncate text-white">{u.username}</h3>
-                                <p className="text-xs text-gray-500 mb-6 truncate">{u.email}</p>
-                                
-                                <div className="flex gap-2">
-                                    <button onClick={() => toggleRole(u._id, u.role)} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase transition-all ${u.role === 'admin' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400'}`}>
-                                        {u.role === 'admin' ? <ShieldCheck size={14}/> : <UserCog size={14}/>} {u.role} Access
-                                    </button>
-                                    <button 
-                                        onClick={() => setPersonalMailUser(u)}
-                                        className="p-2 bg-blue-600/10 text-blue-500 rounded-xl hover:bg-blue-600 hover:text-white transition-all border border-blue-600/20"
-                                        title="Send Personal Dispatch"
-                                    >
-                                        <Mail size={16}/>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* VIEW 2: BROADCAST HQ */}
+            {/* TAB 2: BROADCAST HQ */}
             {activeTab === 'email' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-yellow-500">Broadcast HQ</h1>
@@ -286,11 +346,8 @@ export default function AdminDashboard({ adminId, username }) {
                                 <div style={{backgroundColor: primaryColor, padding: '30px', textAlign: 'center', color: '#fff', borderRadius: '15px'}}>
                                     <h1 style={{margin: 0, fontSize: '20px', textTransform: 'uppercase'}}>{subject}</h1>
                                 </div>
-                                <div className="py-8 px-4 text-slate-700 leading-relaxed italic">
+                                <div className="py-8 px-4 text-slate-700 leading-relaxed italic border-x border-slate-100">
                                     "{message.replace(/{username}/g, username || "Akash")}"
-                                </div>
-                                <div style={{textAlign: 'center'}}>
-                                    <div style={{display: 'inline-block', padding: '12px 30px', backgroundColor: primaryColor, color: '#fff', borderRadius: '10px', fontWeight: 'bold', fontSize: '12px'}}>MISSION CONTROL</div>
                                 </div>
                             </div>
                         </div>
@@ -335,7 +392,7 @@ export default function AdminDashboard({ adminId, username }) {
                             {days.map((d, i) => {
                                 const s = calendar.find(c => c.dayOfWeek === i);
                                 return (
-                                    <div key={i} className={`p-5 rounded-[2rem] border transition-all flex items-center justify-between group ${s ? 'bg-green-500/5 border-green-500/30' : 'bg-black/20 border-white/5 opacity-40'}`}>
+                                    <div key={i} className={`p-5 rounded-[2rem] border transition-all flex items-center justify-between group ${s ? 'bg-green-500/5 border-green-500/20' : 'bg-black/20 border-white/5 opacity-40'}`}>
                                         <div className="flex items-center gap-4 truncate">
                                             <div className={`w-2 h-2 rounded-full shrink-0 ${s ? 'bg-green-500 animate-pulse' : 'bg-gray-700'}`} />
                                             <div className="truncate">
@@ -406,7 +463,7 @@ export default function AdminDashboard({ adminId, username }) {
         </main>
       </div>
 
-      {/* NEW: PERSONAL DISPATCH MODAL */}
+      {/* PERSONAL DISPATCH MODAL */}
       {personalMailUser && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
             <div className="bg-[#0f0f12] border border-blue-500/30 p-6 sm:p-10 rounded-[3rem] max-w-lg w-full relative shadow-[0_0_50px_rgba(59,130,246,0.2)] animate-in zoom-in-95 duration-200">
