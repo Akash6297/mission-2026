@@ -19,13 +19,31 @@ export default async function handler(req, res) {
     return res.status(200).json(settings || { isMailActive: true, mailTarget: "both" });
   }
 
+ // GET SETTINGS
+  if (req.method === 'GET') {
+    const settings = await GlobalSetting.findOne({ configId: "master_config" });
+    return res.status(200).json(settings || { isMorningActive: true, isEveningActive: true, mailTarget: "both" });
+  }
+
+  // UPDATE SETTINGS
   if (req.method === 'POST') {
-    const { isMailActive, mailTarget } = req.body;
+    const { isMorningActive, isEveningActive, mailTarget } = req.body;
+    
+    console.log("Updating DB with:", { isMorningActive, isEveningActive, mailTarget });
+
     const updated = await GlobalSetting.findOneAndUpdate(
-      { configId: "master_config" },
-      { isMailActive, mailTarget },
-      { upsert: true, new: true }
+      { configId: "master_config" }, // Find by this ID
+      { 
+        $set: { 
+          isMorningActive: Boolean(isMorningActive), 
+          isEveningActive: Boolean(isEveningActive), 
+          mailTarget: mailTarget 
+        } 
+      },
+      { upsert: true, new: true, runValidators: true }
     );
+
     return res.status(200).json(updated);
   }
-}
+} 
+

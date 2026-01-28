@@ -63,9 +63,9 @@ export default function AdminDashboard({ adminId, username }) {
     } catch (err) { console.error("Error fetching global settings"); }
   };
 
-  const saveGlobalSettings = async (morning, evening, target) => {
+const saveGlobalSettings = async (morning, evening, target) => {
     try {
-        await fetch('/api/admin/global-settings', {
+        const response = await fetch('/api/admin/global-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -74,10 +74,21 @@ export default function AdminDashboard({ adminId, username }) {
                 mailTarget: target 
             })
         });
-        setMailMorningActive(morning);
-        setMailEveningActive(evening);
-        setMailTarget(target);
-    } catch (err) { alert("Failed to update global settings"); }
+
+        if (response.ok) {
+            const updatedData = await response.json();
+            // Update local state with the actual data returned from DB
+            setMailMorningActive(updatedData.isMorningActive);
+            setMailEveningActive(updatedData.isEveningActive);
+            setMailTarget(updatedData.mailTarget);
+            console.log("Settings synced with MongoDB");
+        } else {
+            alert("Server rejected the update");
+        }
+    } catch (err) { 
+        console.error(err);
+        alert("Failed to connect to API"); 
+    }
   };
 
   const fetchUsers = async () => {
