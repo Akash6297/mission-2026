@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import dbConnect from '../../../lib/mongodb';
 import Motivation from '../../../models/Motivation';
 import User from '../../../models/User';
+import { getRandomStory } from '../../../lib/stories';
 
 export default async function handler(req, res) {
   await dbConnect();
@@ -40,7 +41,14 @@ export default async function handler(req, res) {
         `
       });
     }
-    res.status(200).json({ success: true });
+
+    // Auto Replenish mechanism
+    const freshStory = getRandomStory();
+    scheduledStory.subject = freshStory.subject;
+    scheduledStory.story = freshStory.story;
+    await scheduledStory.save();
+
+    res.status(200).json({ success: true, message: "Story replenished." });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

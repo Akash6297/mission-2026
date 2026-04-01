@@ -4,6 +4,7 @@ import User from '../../../models/User';
 import DailyLog from '../../../models/Log';
 import Motivation from '../../../models/Motivation';
 import GlobalSetting from '../../../models/GlobalSetting';
+import { getRandomStory } from '../../../lib/stories';
 
 export default async function handler(req, res) {
   // CRITICAL FIX: Allow GET for Browser testing and Vercel Crons
@@ -63,7 +64,15 @@ export default async function handler(req, res) {
       });
     }
 
-    res.status(200).json({ message: `Morning briefings sent to ${users.length} recipients.` });
+    // 4. AUTO REPLENISH FOR NEXT WEEK (Replaces today's story with a new random one for next week)
+    if (dailyStory) {
+      const freshStory = getRandomStory();
+      dailyStory.subject = freshStory.subject;
+      dailyStory.story = freshStory.story;
+      await dailyStory.save();
+    }
+
+    res.status(200).json({ message: `Morning briefings sent to ${users.length} recipients. Story replenished.` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

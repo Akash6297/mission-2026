@@ -179,6 +179,18 @@ export default function AdminDashboard({ adminId, username }) {
     }
   };
 
+  const generateStory = async () => {
+      setStatus("Linking Satellite Data...");
+      const res = await fetch('/api/admin/random-story');
+      if (res.ok) {
+          const data = await res.json();
+          setCalForm({ ...calForm, subject: data.subject, story: data.story });
+      } else {
+          alert("Failed to secure feed.");
+      }
+      setStatus("");
+  };
+
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans transition-colors duration-500">
       <Head><title>ADMIN HQ | MISSION 2026</title></Head>
@@ -358,7 +370,12 @@ export default function AdminDashboard({ adminId, username }) {
             {/* VIEW 3: MOTIVATION CALENDAR */}
             {activeTab === 'calendar' && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <h1 className="text-4xl font-black italic uppercase tracking-tighter mb-8 text-green-500 text-center lg:text-left">Motivation Pipeline</h1>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <h1 className="text-4xl font-black italic uppercase tracking-tighter text-green-500 text-center lg:text-left">Motivation Pipeline</h1>
+                        <button onClick={generateStory} className="px-6 py-3 bg-white text-black font-black uppercase tracking-widest text-xs rounded-xl shadow-xl hover:bg-gray-200 transition-all flex items-center gap-2">
+                            ✨ Auto-Generate Story
+                        </button>
+                    </div>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div className="lg:col-span-4 bg-[#0f0f12] p-8 rounded-[3rem] border border-white/5 space-y-6 h-fit shadow-2xl">
                             <div className="grid grid-cols-1 gap-4">
